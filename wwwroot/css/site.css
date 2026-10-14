@@ -1,0 +1,202 @@
+:root {
+  --tm-navy: #102a43;
+  --tm-blue: #1d4ed8;
+  --tm-cyan: #0891b2;
+  --tm-teal: #0f766e;
+  --tm-gold: #f59e0b;
+  --tm-surface: #ffffff;
+  --tm-background: #f2f7fb;
+  --tm-text: #243b53;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html { font-size: 16px; }
+}
+
+body.tm-page {
+  min-height: 100vh;
+  margin-bottom: 80px;
+  color: var(--tm-text);
+  background:
+    radial-gradient(circle at 90% 8%, rgba(8, 145, 178, .12), transparent 25rem),
+    linear-gradient(180deg, #f8fbff 0%, var(--tm-background) 100%);
+}
+
+.tm-navbar {
+  padding: .75rem 0;
+  background: linear-gradient(110deg, var(--tm-navy), #173f68 55%, var(--tm-teal));
+  border-top: 4px solid var(--tm-gold);
+  box-shadow: 0 8px 25px rgba(16, 42, 67, .2);
+}
+
+.tm-brand {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  color: #fff !important;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+.tm-brand small {
+  color: #9ee9e3;
+  font-size: .68em;
+  letter-spacing: .08em;
+}
+
+.tm-brand-mark {
+  display: inline-grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  color: var(--tm-navy);
+  background: linear-gradient(135deg, #fcd34d, var(--tm-gold));
+  border-radius: .8rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .18);
+  font-size: .82rem;
+}
+
+.tm-navbar .navbar-toggler {
+  border-color: rgba(255, 255, 255, .5);
+  background-color: rgba(255, 255, 255, .9);
+}
+
+.tm-navbar .navbar-nav {
+  gap: .35rem;
+  margin-left: 1.25rem;
+}
+
+.tm-navbar .nav-link {
+  position: relative;
+  padding: .6rem .9rem !important;
+  color: rgba(255, 255, 255, .8);
+  border-radius: .65rem;
+  font-weight: 600;
+  transition: color .2s ease, background-color .2s ease, transform .2s ease;
+}
+
+.tm-navbar .nav-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, .12);
+  transform: translateY(-1px);
+}
+
+.tm-navbar .nav-link.active {
+  color: var(--tm-navy);
+  background: linear-gradient(135deg, #fde68a, var(--tm-gold));
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .16);
+}
+
+.tm-content {
+  padding-top: 2.25rem;
+  padding-bottom: 3rem;
+}
+
+h1, h2, h3 {
+  color: var(--tm-navy);
+  font-weight: 750;
+}
+
+h1 {
+  position: relative;
+  padding-bottom: .55rem;
+}
+
+h1::after {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 3.5rem;
+  height: 4px;
+  content: "";
+  background: linear-gradient(90deg, var(--tm-gold), var(--tm-cyan));
+  border-radius: 1rem;
+}
+
+.card,
+form.card,
+.table-responsive {
+  border: 0;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 10px 30px rgba(56, 89, 119, .1);
+}
+
+.card {
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 34px rgba(56, 89, 119, .16) !important;
+}
+
+.table { margin-bottom: 0; }
+.table thead { background: var(--tm-navy); color: #fff; }
+.table th { padding: .9rem 1rem; border: 0; }
+.table td { padding: .9rem 1rem; }
+
+.btn {
+  border-radius: .65rem;
+  font-weight: 650;
+  box-shadow: 0 3px 8px rgba(16, 42, 67, .08);
+}
+
+.btn-primary {
+  border-color: var(--tm-blue);
+  background: linear-gradient(135deg, var(--tm-blue), var(--tm-cyan));
+}
+
+.btn-primary:hover {
+  border-color: var(--tm-navy);
+  background: linear-gradient(135deg, #1e40af, var(--tm-teal));
+}
+
+.form-control,
+.form-select {
+  min-height: 2.7rem;
+  border-color: #cbd9e6;
+  border-radius: .65rem;
+}
+
+.form-control:focus,
+.form-select:focus,
+.btn:focus {
+  border-color: var(--tm-cyan);
+  box-shadow: 0 0 0 .22rem rgba(8, 145, 178, .18);
+}
+
+.alert {
+  border: 0;
+  border-left: 5px solid var(--tm-cyan);
+  border-radius: .75rem;
+  box-shadow: 0 6px 18px rgba(56, 89, 119, .08);
+}
+
+.alert-info {
+  color: #155e75;
+  background: linear-gradient(90deg, #cffafe, #ecfeff);
+}
+
+.badge { padding: .48rem .65rem; border-radius: .55rem; }
+
+.tm-footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  padding: 1.2rem 0;
+  color: #d9e8f5;
+  background: var(--tm-navy);
+}
+
+@media (max-width: 575.98px) {
+  .tm-navbar .navbar-nav { margin: .8rem 0 0; }
+  .tm-navbar .nav-link { margin-bottom: .25rem; }
+  .tm-content { padding-top: 1.4rem; }
+}

@@ -1,0 +1,70 @@
+@model IReadOnlyCollection<Contract>
+@{
+    ViewData["Title"] = "Contracts";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1>Contracts</h1>
+        <p class="text-muted mb-0">Search agreements by status and overlapping date range.</p>
+    </div>
+    <a asp-action="Create" class="btn btn-primary">Add contract</a>
+</div>
+
+<form method="get" class="card card-body mb-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label for="status" class="form-label">Status</label>
+            <select id="status" name="status" asp-items="Html.GetEnumSelectList<ContractStatus>()" class="form-select">
+                <option value="">All statuses</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="fromDate" class="form-label">From date</label>
+            <input id="fromDate" name="fromDate" type="date" value="@ViewBag.FromDate" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <label for="toDate" class="form-label">To date</label>
+            <input id="toDate" name="toDate" type="date" value="@ViewBag.ToDate" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary">Search</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+        </div>
+    </div>
+</form>
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info">No contracts match the selected filters.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead><tr><th>Contract</th><th>Client</th><th>Dates</th><th>Status</th><th>Service level</th><th>Agreement</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var contract in Model)
+            {
+                <tr>
+                    <td>@contract.Title</td>
+                    <td>@contract.Client?.Name</td>
+                    <td>@contract.StartDate.ToString("d") – @contract.EndDate.ToString("d")</td>
+                    <td><span class="badge text-bg-secondary">@contract.Status</span></td>
+                    <td>@contract.ServiceLevel</td>
+                    <td>
+                        @if (contract.AgreementStoredFileName is not null)
+                        {
+                            <a asp-action="DownloadAgreement" asp-route-id="@contract.Id">Download PDF</a>
+                        }
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <a asp-controller="ServiceRequests" asp-action="Create" asp-route-contractId="@contract.Id" class="btn btn-sm btn-outline-primary">New request</a>
+                        <a asp-action="Edit" asp-route-id="@contract.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

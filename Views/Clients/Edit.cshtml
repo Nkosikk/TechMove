@@ -1,0 +1,14 @@
+@model Client
+@{
+    ViewData["Title"] = "Edit client";
+}
+
+<h1>Edit client</h1>
+<form asp-action="Edit" method="post" class="col-lg-7">
+    <input asp-for="Id" type="hidden" />
+    <partial name="_Form" model="Model" />
+    <button type="submit" class="btn btn-primary">Save changes</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

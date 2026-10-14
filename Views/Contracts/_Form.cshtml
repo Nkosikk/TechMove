@@ -1,0 +1,45 @@
+@model ContractFormViewModel
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="row">
+    <div class="col-md-7 mb-3">
+        <label asp-for="ClientId" class="form-label"></label>
+        <select asp-for="ClientId" asp-items="ViewBag.Clients" class="form-select">
+            <option value="">Select a client</option>
+        </select>
+        <span asp-validation-for="ClientId" class="text-danger"></span>
+    </div>
+    <div class="col-md-5 mb-3">
+        <label asp-for="Status" class="form-label"></label>
+        <select asp-for="Status" asp-items="Html.GetEnumSelectList<ContractStatus>()" class="form-select"></select>
+        <span asp-validation-for="Status" class="text-danger"></span>
+    </div>
+</div>
+<div class="mb-3">
+    <label asp-for="Title" class="form-label"></label>
+    <input asp-for="Title" class="form-control" />
+    <span asp-validation-for="Title" class="text-danger"></span>
+</div>
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label asp-for="StartDate" class="form-label"></label>
+        <input asp-for="StartDate" class="form-control" />
+        <span asp-validation-for="StartDate" class="text-danger"></span>
+    </div>
+    <div class="col-md-4 mb-3">
+        <label asp-for="EndDate" class="form-label"></label>
+        <input asp-for="EndDate" class="form-control" />
+        <span asp-validation-for="EndDate" class="text-danger"></span>
+    </div>
+    <div class="col-md-4 mb-3">
+        <label asp-for="ServiceLevel" class="form-label"></label>
+        <input asp-for="ServiceLevel" class="form-control" placeholder="e.g. Gold" />
+        <span asp-validation-for="ServiceLevel" class="text-danger"></span>
+    </div>
+</div>
+<div class="mb-3">
+    <label asp-for="AgreementFile" class="form-label"></label>
+    <input asp-for="AgreementFile" class="form-control" accept="application/pdf,.pdf" />
+    <div class="form-text">PDF only, up to 10 MB.@(Model.HasAgreement ? " Leave blank to keep the current agreement." : string.Empty)</div>
+    <span asp-validation-for="AgreementFile" class="text-danger"></span>
+</div>

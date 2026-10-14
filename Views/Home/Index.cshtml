@@ -1,0 +1,35 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="p-5 mb-4 bg-body-tertiary rounded-3">
+    <div class="container-fluid py-3">
+        <h1 class="display-5 fw-bold">Global Logistics Management</h1>
+        <p class="col-lg-9 fs-5">A central hub for clients, signed freight contracts, service requests, and international cost conversion.</p>
+        <a asp-controller="Contracts" asp-action="Create" class="btn btn-primary btn-lg">Create a contract</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm"><div class="card-body">
+            <h2 class="h4">Clients</h2>
+            <p>Maintain customer contact details and operating regions.</p>
+            <a asp-controller="Clients" asp-action="Index" class="btn btn-outline-primary">Manage clients</a>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm"><div class="card-body">
+            <h2 class="h4">Contracts</h2>
+            <p>Track agreement dates, statuses, service levels, and signed PDFs.</p>
+            <a asp-controller="Contracts" asp-action="Index" class="btn btn-outline-primary">Find contracts</a>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm"><div class="card-body">
+            <h2 class="h4">Service requests</h2>
+            <p>Create valid requests and automatically convert USD costs to ZAR.</p>
+            <a asp-controller="ServiceRequests" asp-action="Index" class="btn btn-outline-primary">Track requests</a>
+        </div></div>
+    </div>
+</div>

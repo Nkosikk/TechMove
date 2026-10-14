@@ -1,0 +1,13 @@
+@model ContractFormViewModel
+@{
+    ViewData["Title"] = "Add contract";
+}
+
+<h1>Add contract</h1>
+<form asp-action="Create" method="post" enctype="multipart/form-data" class="col-xl-9">
+    <partial name="_Form" model="Model" />
+    <button type="submit" class="btn btn-primary">Create contract</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
