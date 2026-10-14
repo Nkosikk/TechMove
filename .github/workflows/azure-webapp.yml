@@ -1,0 +1,45 @@
+name: Build and deploy TechMove to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: 10.0.x
+  PROJECT_PATH: TechMove/TechMove.csproj
+  PUBLISH_PATH: ./publish
+  AZURE_WEBAPP_NAME: TechMove
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore TechMove.slnx
+
+      - name: Build
+        run: dotnet build TechMove.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test TechMove.Tests/TechMove.Tests.csproj --configuration Release --no-build
+
+      - name: Publish application
+        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build --output ${{ env.PUBLISH_PATH }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.PUBLISH_PATH }}

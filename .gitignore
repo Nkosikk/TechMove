@@ -1,0 +1,31 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Build output
+**/bin/
+**/obj/
+
+# Test output
+TestResults/
+*.trx
+
+# Publish output
+publish/
+**/publish/
+
+# Local configuration and secrets
+appsettings.Local.json
+*.pubxml
+*.pubxml.user
+*.publishsettings
+
+# Database and local storage
+*.mdf
+*.ldf
+TechMove/App_Data/
+
+# OS files
+.DS_Store
+Thumbs.db
