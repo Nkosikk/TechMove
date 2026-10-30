@@ -45,7 +45,7 @@
                     <ul class="navbar-nav align-items-sm-center">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <li class="nav-item"><span class="tm-user-pill">@(User.IsInRole(AppRoles.Admin) ? "Admin" : "User") · @User.Identity.Name</span></li>
+                            <li class="nav-item"><span class="tm-user-pill">@(User.IsInRole(AppRoles.Admin) ? "Manager" : "Employee") · @User.Identity.Name</span></li>
                             <li class="nav-item">
                                 <form asp-controller="Account" asp-action="Logout" method="post">
                                     <button type="submit" class="nav-link btn btn-link">Sign out</button>
@@ -68,6 +68,13 @@
             {
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     @successMessage
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["Error"] is string errorMessage)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @errorMessage
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             }

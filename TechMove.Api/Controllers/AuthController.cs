@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using TechMove.Api.Models;
 using TechMove.Api.Security;
+using TechMove.Api.Services;
 using TechMove.Contracts;
 
 namespace TechMove.Api.Controllers;
@@ -14,21 +15,27 @@ namespace TechMove.Api.Controllers;
 [Route("api/auth")]
 public sealed class AuthController(
     IOptions<JwtOptions> options,
+    IOptions<EmailDeliveryOptions> emailOptions,
     JwtTokenService tokenService,
+    IAccountEmailSender emailSender,
     UserManager<AppUser> userManager) : ControllerBase
 {
     [AllowAnonymous]
     [HttpPost("register")]
-    [ProducesResponseType<LoginResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<RegistrationResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<LoginResponse>> Register(RegisterRequest request)
+    public async Task<ActionResult<RegistrationResponse>> Register(
+        RegisterRequest request,
+        CancellationToken cancellationToken)
     {
         var user = new AppUser
         {
             DisplayName = request.DisplayName.Trim(),
             Email = request.Email.Trim(),
             UserName = request.Email.Trim(),
-            EmailConfirmed = true
+            EmailConfirmed = false,
+            IsApproved = false,
+            RegisteredAtUtc = DateTime.UtcNow
         };
         var result = await userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
@@ -40,13 +47,63 @@ public sealed class AuthController(
             return ValidationProblem(ModelState);
         }
 
-        await userManager.AddToRoleAsync(user, AppRoles.User);
-        var roles = await userManager.GetRolesAsync(user);
-        return Created(string.Empty, tokenService.CreateToken(
+        var roleResult = await userManager.AddToRoleAsync(user, AppRoles.User);
+        if (!roleResult.Succeeded)
+        {
+            await userManager.DeleteAsync(user);
+            foreach (var error in roleResult.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+            return ValidationProblem(ModelState);
+        }
+
+        var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        var confirmationUrl = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            $"{emailOptions.Value.PublicAppBaseUrl.TrimEnd('/')}/Account/ConfirmEmail",
+            new Dictionary<string, string?>
+            {
+                ["userId"] = user.Id,
+                ["token"] = token
+            });
+        try
+        {
+            await emailSender.SendRegistrationConfirmationAsync(
+                user.Email!,
+                user.DisplayName,
+                confirmationUrl,
+                cancellationToken);
+        }
+        catch
+        {
+            await userManager.DeleteAsync(user);
+            throw;
+        }
+
+        return Created(string.Empty, new RegistrationResponse(
             user.Id,
             user.Email!,
-            user.DisplayName,
-            roles.ToArray()));
+            "Registration submitted. Check your email to confirm your address, then a manager will review your employee account."));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("confirm-email")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request)
+    {
+        var user = await userManager.FindByIdAsync(request.UserId);
+        if (user is null)
+        {
+            return InvalidConfirmation();
+        }
+        if (user.EmailConfirmed)
+        {
+            return NoContent();
+        }
+
+        var result = await userManager.ConfirmEmailAsync(user, request.Token);
+        return result.Succeeded ? NoContent() : InvalidConfirmation();
     }
 
     [AllowAnonymous]
@@ -62,6 +119,24 @@ public sealed class AuthController(
             {
                 Title = "Sign in failed",
                 Detail = "The email address or password is incorrect."
+            });
+        }
+
+        if (!user.EmailConfirmed)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Title = "Email confirmation required",
+                Detail = "Confirm your email address before a manager can review your employee account."
+            });
+        }
+
+        if (!user.IsApproved)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Title = "Account awaiting approval",
+                Detail = "A manager must approve this employee account before it can sign in."
             });
         }
 
@@ -91,5 +166,11 @@ public sealed class AuthController(
         var expectedBytes = Encoding.UTF8.GetBytes(expected ?? string.Empty);
         return suppliedBytes.Length == expectedBytes.Length
             && CryptographicOperations.FixedTimeEquals(suppliedBytes, expectedBytes);
+    }
+
+    private ActionResult InvalidConfirmation()
+    {
+        ModelState.AddModelError(string.Empty, "The email confirmation link is invalid or has expired.");
+        return ValidationProblem(ModelState);
     }
 }

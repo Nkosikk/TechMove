@@ -15,6 +15,8 @@ call :stop_container techmove-web
 if errorlevel 1 goto :error
 call :stop_container techmove-api
 if errorlevel 1 goto :error
+call :stop_container techmove-mailpit
+if errorlevel 1 goto :error
 call :stop_container techmove-sql
 if errorlevel 1 goto :error
 

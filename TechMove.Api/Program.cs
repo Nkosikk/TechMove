@@ -33,6 +33,11 @@ builder.Services.AddIdentityCore<AppUser>(options =>
     .AddDefaultTokenProviders();
 builder.Services.Configure<AdminSeedOptions>(
     builder.Configuration.GetSection(AdminSeedOptions.SectionName));
+builder.Services.AddOptions<EmailDeliveryOptions>()
+    .Bind(builder.Configuration.GetSection(EmailDeliveryOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddTransient<IAccountEmailSender, SmtpAccountEmailSender>();
 
 var agreementStorageOptions = builder.Configuration
     .GetSection(AgreementStorageOptions.SectionName)
@@ -153,7 +158,10 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
             UserName = seed.Email,
             Email = seed.Email,
             DisplayName = seed.DisplayName,
-            EmailConfirmed = true
+            EmailConfirmed = true,
+            IsApproved = true,
+            RegisteredAtUtc = DateTime.UtcNow,
+            ApprovedAtUtc = DateTime.UtcNow
         };
         var result = await userManager.CreateAsync(admin, seed.Password);
         if (!result.Succeeded)
@@ -166,6 +174,14 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
     if (!await userManager.IsInRoleAsync(admin, AppRoles.Admin))
     {
         await userManager.AddToRoleAsync(admin, AppRoles.Admin);
+    }
+
+    if (!admin.IsApproved)
+    {
+        admin.IsApproved = true;
+        admin.ApprovedAtUtc = DateTime.UtcNow;
+        admin.ApprovedById = admin.Id;
+        await userManager.UpdateAsync(admin);
     }
 }
 

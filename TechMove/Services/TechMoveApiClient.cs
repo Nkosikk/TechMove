@@ -19,11 +19,40 @@ public sealed class TechMoveApiClient(
     public Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken) =>
         SendAuthenticationAsync("api/auth/login", request, cancellationToken);
 
-    public Task<LoginResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken) =>
-        SendAuthenticationAsync("api/auth/register", request, cancellationToken);
+    public async Task<RegistrationResponse> RegisterAsync(
+        RegisterRequest request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.PostAsJsonAsync(
+            "api/auth/register",
+            request,
+            JsonOptions,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<RegistrationResponse>(JsonOptions, cancellationToken)
+            ?? throw new InvalidOperationException("The TechMove API returned an empty registration response.");
+    }
+
+    public async Task ConfirmEmailAsync(
+        ConfirmEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.PostAsJsonAsync(
+            "api/auth/confirm-email",
+            request,
+            JsonOptions,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
 
     public Task<DashboardDto> GetDashboardAsync(CancellationToken cancellationToken) =>
         GetAsync<DashboardDto>("api/dashboard", cancellationToken);
+
+    public async Task ApproveUserAsync(string id, CancellationToken cancellationToken) =>
+        await SendJsonAsync(HttpMethod.Post, $"api/users/{Uri.EscapeDataString(id)}/approve", new { }, cancellationToken);
+
+    public async Task PromoteUserAsync(string id, CancellationToken cancellationToken) =>
+        await SendJsonAsync(HttpMethod.Post, $"api/users/{Uri.EscapeDataString(id)}/promote", new { }, cancellationToken);
 
     public Task<IReadOnlyList<ClientDto>> GetClientsAsync(CancellationToken cancellationToken) =>
         GetAsync<IReadOnlyList<ClientDto>>("api/clients", cancellationToken);

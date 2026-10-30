@@ -7,8 +7,8 @@
     <form asp-action="Register" method="post" class="card tm-auth-card mx-auto">
         <div class="card-body p-4 p-lg-5">
             <span class="tm-eyebrow">Join the operations network</span>
-            <h1 class="h2 mt-2">Create your TechMove account</h1>
-            <p class="text-muted">Your workspace will show only the clients, contracts, and requests you create.</p>
+            <h1 class="h2 mt-2">Create your employee account</h1>
+            <p class="text-muted">After registering, confirm your email address. A manager will then review your account and email you when it is approved.</p>
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
             <div class="mb-3">
                 <label asp-for="DisplayName" class="form-label"></label>
@@ -33,7 +33,7 @@
                 </div>
             </div>
             <div class="form-text mb-4">Use at least 8 characters with uppercase, lowercase, a number, and a symbol.</div>
-            <button type="submit" class="btn btn-primary w-100">Create account</button>
+            <button type="submit" class="btn btn-primary w-100">Register as an employee</button>
             <p class="text-center mt-4 mb-0">Already registered? <a asp-action="Login">Sign in</a></p>
         </div>
     </form>

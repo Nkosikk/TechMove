@@ -118,6 +118,25 @@ public sealed record LoginResponse(
     DateTime ExpiresAtUtc,
     string DisplayName,
     IReadOnlyCollection<string> Roles);
+public sealed record RegistrationResponse(string UserId, string Email, string Message);
+public sealed record ConfirmEmailRequest(string UserId, string Token);
+
+public sealed class PendingUserDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public DateTime RegisteredAtUtc { get; set; }
+}
+
+public sealed class ManagedUserDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public bool IsAdmin { get; set; }
+    public DateTime RegisteredAtUtc { get; set; }
+}
 
 public sealed class RegisterRequest
 {
@@ -142,6 +161,9 @@ public sealed class DashboardDto
     public int ServiceRequestCount { get; set; }
     public int PendingServiceRequestCount { get; set; }
     public int UserCount { get; set; }
+    public int PendingUserCount { get; set; }
     public IReadOnlyCollection<ContractDto> PendingContracts { get; set; } = [];
     public IReadOnlyCollection<ServiceRequestDto> PendingServiceRequests { get; set; } = [];
+    public IReadOnlyCollection<PendingUserDto> PendingUsers { get; set; } = [];
+    public IReadOnlyCollection<ManagedUserDto> Users { get; set; } = [];
 }

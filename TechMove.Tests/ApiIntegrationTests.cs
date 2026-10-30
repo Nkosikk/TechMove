@@ -3,12 +3,14 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TechMove.Api.Data;
+using TechMove.Api.Services;
 using TechMove.Contracts;
 
 namespace TechMove.Tests;
@@ -16,6 +18,7 @@ namespace TechMove.Tests;
 public sealed class TechMoveApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _databaseName = $"TechMoveTests-{Guid.NewGuid():N}";
+    public TestAccountEmailSender EmailSender { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -25,7 +28,13 @@ public sealed class TechMoveApiFactory : WebApplicationFactory<Program>
             {
                 ["AdminSeed:DisplayName"] = "Integration Administrator",
                 ["AdminSeed:Email"] = "admin@integration.test",
-                ["AdminSeed:Password"] = "Admin123!"
+                ["AdminSeed:Password"] = "Admin123!",
+                ["EmailDelivery:Host"] = "localhost",
+                ["EmailDelivery:Port"] = "1025",
+                ["EmailDelivery:EnableSsl"] = "false",
+                ["EmailDelivery:FromAddress"] = "noreply@integration.test",
+                ["EmailDelivery:FromName"] = "TechMove Tests",
+                ["EmailDelivery:PublicAppBaseUrl"] = "https://techmove.integration.test"
             }));
         builder.ConfigureServices(services =>
         {
@@ -34,7 +43,36 @@ public sealed class TechMoveApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<TechMoveDbContext>();
             services.AddDbContext<TechMoveDbContext>(options =>
                 options.UseInMemoryDatabase(_databaseName));
+            services.RemoveAll<IAccountEmailSender>();
+            services.AddSingleton(EmailSender);
+            services.AddSingleton<IAccountEmailSender>(EmailSender);
         });
+    }
+}
+
+public sealed record TestAccountEmail(string Type, string Recipient, string? ConfirmationUrl = null);
+
+public sealed class TestAccountEmailSender : IAccountEmailSender
+{
+    public List<TestAccountEmail> Sent { get; } = [];
+
+    public Task SendRegistrationConfirmationAsync(
+        string email,
+        string displayName,
+        string confirmationUrl,
+        CancellationToken cancellationToken = default)
+    {
+        Sent.Add(new TestAccountEmail("Confirmation", email, confirmationUrl));
+        return Task.CompletedTask;
+    }
+
+    public Task SendAccountApprovedAsync(
+        string email,
+        string displayName,
+        CancellationToken cancellationToken = default)
+    {
+        Sent.Add(new TestAccountEmail("Approval", email));
+        return Task.CompletedTask;
     }
 }
 
@@ -83,16 +121,100 @@ public sealed class ApiIntegrationTests(TechMoveApiFactory factory) : IClassFixt
     }
 
     [Fact]
-    public async Task Register_AssignsUserRole_AndReturnsToken()
+    public async Task Register_CreatesPendingAccount_AndBlocksLogin()
     {
         using var client = CreateClient();
         var email = $"user-{Guid.NewGuid():N}@integration.test";
 
-        var response = await RegisterAsync(client, email);
+        var registration = await RegisterAsync(client, email);
+        var loginResponse = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest(email, "User123!"));
 
-        Assert.Contains(AppRoles.User, response.Roles);
-        Assert.DoesNotContain(AppRoles.Admin, response.Roles);
-        Assert.False(string.IsNullOrWhiteSpace(response.AccessToken));
+        Assert.False(string.IsNullOrWhiteSpace(registration.UserId));
+        Assert.Contains("confirm", registration.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(factory.EmailSender.Sent,
+            message => message.Type == "Confirmation" && message.Recipient == email);
+        Assert.Equal(HttpStatusCode.Forbidden, loginResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task ApproveUser_BeforeEmailConfirmation_ReturnsBadRequest()
+    {
+        using var userClient = CreateClient();
+        using var managerClient = CreateClient();
+        var email = $"unconfirmed-{Guid.NewGuid():N}@integration.test";
+        var registration = await RegisterAsync(userClient, email);
+        await AuthenticateAdminAsync(managerClient);
+
+        var response = await managerClient.PostAsJsonAsync(
+            $"/api/users/{registration.UserId}/approve",
+            new { });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.DoesNotContain(factory.EmailSender.Sent,
+            message => message.Type == "Approval" && message.Recipient == email);
+    }
+
+    [Fact]
+    public async Task ApproveUser_AsAdmin_AllowsLoginWithUserRole()
+    {
+        using var userClient = CreateClient();
+        using var adminClient = CreateClient();
+        var email = $"approved-{Guid.NewGuid():N}@integration.test";
+        var registration = await RegisterAsync(userClient, email);
+        await ConfirmEmailAsync(userClient, email);
+        await AuthenticateAdminAsync(adminClient);
+
+        var approvalResponse = await adminClient.PostAsJsonAsync(
+            $"/api/users/{registration.UserId}/approve",
+            new { });
+        var loginResponse = await userClient.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest(email, "User123!"));
+        var login = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+
+        Assert.Equal(HttpStatusCode.NoContent, approvalResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+        Assert.Contains(AppRoles.User, login!.Roles);
+        Assert.Contains(factory.EmailSender.Sent,
+            message => message.Type == "Approval" && message.Recipient == email);
+    }
+
+    [Fact]
+    public async Task PromoteUser_AsAdmin_GrantsAdminRoleOnNextLogin()
+    {
+        using var userClient = CreateClient();
+        using var adminClient = CreateClient();
+        var email = $"promoted-{Guid.NewGuid():N}@integration.test";
+        var registration = await RegisterAsync(userClient, email);
+        await ConfirmEmailAsync(userClient, email);
+        await AuthenticateAdminAsync(adminClient);
+        (await adminClient.PostAsJsonAsync(
+            $"/api/users/{registration.UserId}/approve",
+            new { })).EnsureSuccessStatusCode();
+
+        var promotionResponse = await adminClient.PostAsJsonAsync(
+            $"/api/users/{registration.UserId}/promote",
+            new { });
+        var loginResponse = await userClient.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest(email, "User123!"));
+        var login = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+
+        Assert.Equal(HttpStatusCode.NoContent, promotionResponse.StatusCode);
+        Assert.Contains(AppRoles.Admin, login!.Roles);
+    }
+
+    [Fact]
+    public async Task PromoteUser_AsNormalUser_ReturnsForbidden()
+    {
+        using var client = CreateClient();
+        await RegisterAndAuthenticateAsync(client, $"normal-{Guid.NewGuid():N}@integration.test");
+
+        var response = await client.PostAsJsonAsync("/api/users/another-user/promote", new { });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
@@ -146,7 +268,7 @@ public sealed class ApiIntegrationTests(TechMoveApiFactory factory) : IClassFixt
             new AuthenticationHeaderValue("Bearer", login.AccessToken);
     }
 
-    private static async Task<LoginResponse> RegisterAsync(HttpClient client, string email)
+    private static async Task<RegistrationResponse> RegisterAsync(HttpClient client, string email)
     {
         var response = await client.PostAsJsonAsync("/api/auth/register", new RegisterRequest
         {
@@ -156,14 +278,48 @@ public sealed class ApiIntegrationTests(TechMoveApiFactory factory) : IClassFixt
             ConfirmPassword = "User123!"
         });
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<LoginResponse>())!;
+        return (await response.Content.ReadFromJsonAsync<RegistrationResponse>())!;
     }
 
-    private static async Task RegisterAndAuthenticateAsync(HttpClient client, string email)
+    private async Task RegisterAndAuthenticateAsync(HttpClient client, string email)
     {
-        var login = await RegisterAsync(client, email);
+        var registration = await RegisterAsync(client, email);
+        await ConfirmEmailAsync(client, email);
+        using var adminClient = CreateClient();
+        await AuthenticateAdminAsync(adminClient);
+        var approval = await adminClient.PostAsJsonAsync(
+            $"/api/users/{registration.UserId}/approve",
+            new { });
+        approval.EnsureSuccessStatusCode();
+        var loginResponse = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest(email, "User123!"));
+        loginResponse.EnsureSuccessStatusCode();
+        var login = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
         client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", login.AccessToken);
+            new AuthenticationHeaderValue("Bearer", login!.AccessToken);
+    }
+
+    private async Task ConfirmEmailAsync(HttpClient client, string email)
+    {
+        var emailMessage = factory.EmailSender.Sent.Last(message =>
+            message.Type == "Confirmation" && message.Recipient == email);
+        var query = QueryHelpers.ParseQuery(new Uri(emailMessage.ConfirmationUrl!).Query);
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/confirm-email",
+            new ConfirmEmailRequest(query["userId"].ToString(), query["token"].ToString()));
+        response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task AuthenticateAdminAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest("admin@integration.test", "Admin123!"));
+        response.EnsureSuccessStatusCode();
+        var login = await response.Content.ReadFromJsonAsync<LoginResponse>();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", login!.AccessToken);
     }
 
     private HttpClient CreateClient() => factory.CreateClient(new WebApplicationFactoryClientOptions

@@ -19,6 +19,7 @@ public sealed class DashboardController(TechMoveDbContext dbContext) : Controlle
         var contracts = dbContext.Contracts.AsNoTracking().AsQueryable();
         var serviceRequests = dbContext.ServiceRequests.AsNoTracking().AsQueryable();
         var canViewAll = User.CanViewAllRecords();
+        var isAdmin = User.IsInRole(AppRoles.Admin);
         if (!canViewAll)
         {
             var ownerId = User.GetOwnerId();
@@ -46,6 +47,36 @@ public sealed class DashboardController(TechMoveDbContext dbContext) : Controlle
                 OwnerName = contract.Owner != null ? contract.Owner.DisplayName : "Legacy record"
             })
             .ToListAsync(cancellationToken);
+        var pendingUsers = isAdmin
+            ? await dbContext.Users.AsNoTracking()
+                .Where(user => user.EmailConfirmed && !user.IsApproved)
+                .OrderBy(user => user.RegisteredAtUtc)
+                .Take(10)
+                .Select(user => new PendingUserDto
+                {
+                    Id = user.Id,
+                    DisplayName = user.DisplayName,
+                    Email = user.Email ?? string.Empty,
+                    RegisteredAtUtc = user.RegisteredAtUtc
+                })
+                .ToListAsync(cancellationToken)
+            : [];
+        var users = isAdmin
+            ? await dbContext.Users.AsNoTracking()
+                .Where(user => user.IsApproved)
+                .OrderBy(user => user.DisplayName)
+                .Select(user => new ManagedUserDto
+                {
+                    Id = user.Id,
+                    DisplayName = user.DisplayName,
+                    Email = user.Email ?? string.Empty,
+                    IsAdmin = dbContext.UserRoles.Any(userRole =>
+                        userRole.UserId == user.Id
+                        && dbContext.Roles.Any(role => role.Id == userRole.RoleId && role.Name == AppRoles.Admin)),
+                    RegisteredAtUtc = user.RegisteredAtUtc
+                })
+                .ToListAsync(cancellationToken)
+            : [];
         var pendingRequests = await serviceRequests
             .Where(request => request.Status == ServiceRequestStatus.New)
             .OrderBy(request => request.CreatedAtUtc)
@@ -78,8 +109,15 @@ public sealed class DashboardController(TechMoveDbContext dbContext) : Controlle
                 request => request.Status == ServiceRequestStatus.New,
                 cancellationToken),
             UserCount = canViewAll ? await dbContext.Users.CountAsync(cancellationToken) : 0,
+            PendingUserCount = isAdmin
+                ? await dbContext.Users.CountAsync(
+                    user => user.EmailConfirmed && !user.IsApproved,
+                    cancellationToken)
+                : 0,
             PendingContracts = pendingContracts,
-            PendingServiceRequests = pendingRequests
+            PendingServiceRequests = pendingRequests,
+            PendingUsers = pendingUsers,
+            Users = users
         });
     }
 }

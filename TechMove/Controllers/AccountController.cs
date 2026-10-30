@@ -41,7 +41,7 @@ public sealed class AccountController(TechMoveApiClient apiClient) : Controller
         }
         catch (HttpRequestException)
         {
-            ModelState.AddModelError(string.Empty, "The email address or password is incorrect.");
+            ModelState.AddModelError(string.Empty, "Sign-in failed. Confirm your email first, then wait for a manager to approve your employee account.");
             ViewBag.ReturnUrl = returnUrl;
             return View(model);
         }
@@ -49,6 +49,28 @@ public sealed class AccountController(TechMoveApiClient apiClient) : Controller
 
     [AllowAnonymous]
     public IActionResult Register() => View(new RegisterRequest());
+
+    [AllowAnonymous]
+    [HttpGet]
+    public async Task<IActionResult> ConfirmEmail(
+        string userId,
+        string token,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await apiClient.ConfirmEmailAsync(
+                new ConfirmEmailRequest(userId, token),
+                cancellationToken);
+            TempData["Success"] = "Email confirmed. A manager can now review your employee account. You will receive another email when it is approved.";
+        }
+        catch (HttpRequestException)
+        {
+            TempData["Error"] = "This email confirmation link is invalid or has expired.";
+        }
+
+        return RedirectToAction(nameof(Login));
+    }
 
     [AllowAnonymous]
     [HttpPost, ValidateAntiForgeryToken]
@@ -62,9 +84,8 @@ public sealed class AccountController(TechMoveApiClient apiClient) : Controller
         try
         {
             var response = await apiClient.RegisterAsync(model, cancellationToken);
-            await SignInAsync(response, model.Email, false);
-            TempData["Success"] = "Welcome to TechMove. Your account is ready.";
-            return RedirectToAction("Index", "Home");
+            TempData["Success"] = response.Message;
+            return RedirectToAction(nameof(Login));
         }
         catch (HttpRequestException)
         {

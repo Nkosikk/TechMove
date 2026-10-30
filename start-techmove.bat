@@ -5,9 +5,12 @@ cd /d "%~dp0"
 
 set "NETWORK=techmove-network"
 set "SQL_CONTAINER=techmove-sql"
+set "MAILPIT_CONTAINER=techmove-mailpit"
 set "API_CONTAINER=techmove-api"
 set "WEB_CONTAINER=techmove-web"
 set "SQL_PASSWORD=TechMove-Local-2026!"
+set "ADMIN_EMAIL=admin@techmove.local"
+set "ADMIN_PASSWORD=Admin123!"
 
 echo Checking Docker...
 docker info >nul 2>&1
@@ -20,6 +23,16 @@ if errorlevel 1 (
 echo Creating Docker network if needed...
 docker network inspect "%NETWORK%" >nul 2>&1 || docker network create "%NETWORK%"
 if errorlevel 1 goto :error
+
+echo Starting Mailpit email server...
+docker container inspect "%MAILPIT_CONTAINER%" >nul 2>&1
+if errorlevel 1 (
+	docker run -d --name "%MAILPIT_CONTAINER%" --network "%NETWORK%" -p 1025:1025 -p 8025:8025 axllent/mailpit
+) else (
+	docker start "%MAILPIT_CONTAINER%" >nul
+)
+if errorlevel 1 goto :error
+docker network connect "%NETWORK%" "%MAILPIT_CONTAINER%" >nul 2>&1
 
 echo Starting SQL Server...
 docker container inspect "%SQL_CONTAINER%" >nul 2>&1
@@ -36,7 +49,7 @@ if errorlevel 1 goto :error
 
 echo Recreating API container...
 docker rm -f "%API_CONTAINER%" >nul 2>&1
-docker run -d --name "%API_CONTAINER%" --network "%NETWORK%" -p 8081:8080 -e "ConnectionStrings__TechMoveDb=Server=%SQL_CONTAINER%;Database=TechMoveDb;User Id=sa;Password=%SQL_PASSWORD%;TrustServerCertificate=True" -e "Database__MigrateOnStartup=true" techmove-api
+docker run -d --name "%API_CONTAINER%" --network "%NETWORK%" -p 8081:8080 -e "ConnectionStrings__TechMoveDb=Server=%SQL_CONTAINER%;Database=TechMoveDb;User Id=sa;Password=%SQL_PASSWORD%;TrustServerCertificate=True" -e "Database__MigrateOnStartup=true" -e "AdminSeed__DisplayName=TechMove Manager" -e "AdminSeed__Email=%ADMIN_EMAIL%" -e "AdminSeed__Password=%ADMIN_PASSWORD%" -e "EmailDelivery__Host=%MAILPIT_CONTAINER%" -e "EmailDelivery__Port=1025" -e "EmailDelivery__EnableSsl=false" -e "EmailDelivery__FromAddress=noreply@techmove.local" -e "EmailDelivery__FromName=TechMove" -e "EmailDelivery__PublicAppBaseUrl=http://localhost:8080" techmove-api
 if errorlevel 1 goto :error
 
 echo Building web image...
@@ -57,11 +70,15 @@ echo TechMove is starting:
 echo   Website:    http://localhost:8080
 echo   API Swagger: http://localhost:8081/swagger
 echo   API Health:  http://localhost:8081/health
+echo   Email inbox:  http://localhost:8025
+echo   Manager email:  %ADMIN_EMAIL%
+echo   Manager password: %ADMIN_PASSWORD%
 echo.
 echo Use "docker logs techmove-api" if the API needs time to initialize.
 echo The containers will continue running after this window closes.
 start "" "http://localhost:8080"
 start "" "http://localhost:8081/swagger"
+start "" "http://localhost:8025"
 echo.
 pause
 exit /b 0

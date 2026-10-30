@@ -7,8 +7,8 @@
     <div class="tm-auth-panel">
         <div class="tm-auth-copy">
             <span class="tm-eyebrow">Secure logistics workspace</span>
-            <h1>Move work forward with confidence.</h1>
-            <p>Sign in to manage your own clients, contracts, approvals, and international service requests.</p>
+            <h1>Employee and manager access.</h1>
+            <p>Employees manage their logistics work, while managers review registrations, approvals, and team activity.</p>
         </div>
         <form asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl" method="post" class="card tm-auth-card">
             <div class="card-body p-4 p-lg-5">
@@ -29,7 +29,7 @@
                     <label asp-for="RememberMe" class="form-check-label"></label>
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Sign in</button>
-                <p class="text-center mt-4 mb-0">New to TechMove? <a asp-action="Register">Create an account</a></p>
+                <p class="text-center mt-4 mb-0">New employee? <a asp-action="Register">Create an account</a></p>
             </div>
         </form>
     </div>
