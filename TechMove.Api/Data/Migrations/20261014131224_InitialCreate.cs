@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace TechMove.Data.Migrations
+namespace TechMove.Api.Data.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -102,3 +102,4 @@ namespace TechMove.Data.Migrations
         }
     }
 }
+

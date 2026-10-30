@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="TechMove.Api/TechMove.Api.csproj" />
+  <Project Path="TechMove.Contracts/TechMove.Contracts.csproj" />
   <Project Path="TechMove.Tests/TechMove.Tests.csproj" />
   <Project Path="TechMove/TechMove.csproj" />
 </Solution>

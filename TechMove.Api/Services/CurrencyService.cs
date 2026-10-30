@@ -1,6 +1,6 @@
 using System.Net.Http.Json;
 
-namespace TechMove.Services;
+namespace TechMove.Api.Services;
 
 public class CurrencyService(HttpClient httpClient) : ICurrencyService
 {
@@ -34,3 +34,4 @@ public class CurrencyService(HttpClient httpClient) : ICurrencyService
 
     private sealed record ExchangeRateResponse(Dictionary<string, decimal> Rates);
 }
+

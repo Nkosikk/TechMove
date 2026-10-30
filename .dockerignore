@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+**/.vs/
+.git/
+.github/upgrades/
+**/App_Data/
+**/*.user
+**/*.suo

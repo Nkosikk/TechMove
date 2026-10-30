@@ -1,4 +1,4 @@
-namespace TechMove.Services;
+namespace TechMove.Api.Services;
 
 public class AgreementStorageOptions
 {
@@ -7,3 +7,4 @@ public class AgreementStorageOptions
     public string Path { get; set; } = "App_Data/Agreements";
     public long MaximumFileSizeBytes { get; set; } = 10 * 1024 * 1024;
 }
+

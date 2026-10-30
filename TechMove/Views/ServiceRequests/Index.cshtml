@@ -1,4 +1,4 @@
-@model IReadOnlyCollection<ServiceRequest>
+@model IReadOnlyCollection<ServiceRequestDto>
 @{
     ViewData["Title"] = "Service requests";
 }
@@ -25,7 +25,7 @@ else
             {
                 <tr>
                     <td>@request.CreatedAtUtc.ToLocalTime().ToString("g")</td>
-                    <td>@request.Contract?.Title<br /><small class="text-muted">@request.Contract?.Client?.Name</small></td>
+                    <td>@request.ContractTitle<br /><small class="text-muted">@request.ClientName</small></td>
                     <td>@request.Description</td>
                     <td>@request.CostUsd.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</td>
                     <td>@request.LocalCostZar.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-ZA"))</td>

@@ -1,67 +1,48 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TechMove.Data;
-using TechMove.Models;
+using TechMove.Contracts;
+using TechMove.Services;
 
 namespace TechMove.Controllers;
 
-public class ClientsController(TechMoveDbContext dbContext) : Controller
+public sealed class ClientsController(TechMoveApiClient apiClient) : Controller
 {
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
-    {
-        var clients = await dbContext.Clients
-            .AsNoTracking()
-            .Include(client => client.Contracts)
-            .OrderBy(client => client.Name)
-            .ToListAsync(cancellationToken);
-        return View(clients);
-    }
+    public async Task<IActionResult> Index(CancellationToken cancellationToken) =>
+        View(await apiClient.GetClientsAsync(cancellationToken));
 
-    public IActionResult Create() => View(new Client());
+    public IActionResult Create() => View(new ClientDto());
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Client client, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(ClientDto client, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
             return View(client);
         }
 
-        dbContext.Clients.Add(client);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await apiClient.CreateClientAsync(client, cancellationToken);
         TempData["Success"] = "Client created successfully.";
         return RedirectToAction(nameof(Index));
     }
 
     public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
     {
-        var client = await dbContext.Clients.FindAsync([id], cancellationToken);
+        var client = await apiClient.GetClientAsync(id, cancellationToken);
         return client is null ? NotFound() : View(client);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, Client client, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(int id, ClientDto client, CancellationToken cancellationToken)
     {
         if (id != client.Id)
         {
             return NotFound();
         }
-
         if (!ModelState.IsValid)
         {
             return View(client);
         }
 
-        var existing = await dbContext.Clients.FindAsync([id], cancellationToken);
-        if (existing is null)
-        {
-            return NotFound();
-        }
-
-        existing.Name = client.Name;
-        existing.ContactDetails = client.ContactDetails;
-        existing.Region = client.Region;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await apiClient.UpdateClientAsync(id, client, cancellationToken);
         TempData["Success"] = "Client updated successfully.";
         return RedirectToAction(nameof(Index));
     }

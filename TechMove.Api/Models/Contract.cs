@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using TechMove.Contracts;
 
-namespace TechMove.Models;
+namespace TechMove.Api.Models;
 
 public class Contract
 {
@@ -34,10 +35,3 @@ public class Contract
     public ICollection<ServiceRequest> ServiceRequests { get; set; } = [];
 }
 
-public enum ContractStatus
-{
-    Draft,
-    Active,
-    Expired,
-    OnHold
-}

@@ -1,4 +1,4 @@
-@model IReadOnlyCollection<Contract>
+@model IReadOnlyCollection<ContractDto>
 @{
     ViewData["Title"] = "Contracts";
 }
@@ -48,12 +48,12 @@ else
             {
                 <tr>
                     <td>@contract.Title</td>
-                    <td>@contract.Client?.Name</td>
+                    <td>@contract.ClientName</td>
                     <td>@contract.StartDate.ToString("d") – @contract.EndDate.ToString("d")</td>
                     <td><span class="badge text-bg-secondary">@contract.Status</span></td>
                     <td>@contract.ServiceLevel</td>
                     <td>
-                        @if (contract.AgreementStoredFileName is not null)
+                        @if (contract.HasAgreement)
                         {
                             <a asp-action="DownloadAgreement" asp-route-id="@contract.Id">Download PDF</a>
                         }

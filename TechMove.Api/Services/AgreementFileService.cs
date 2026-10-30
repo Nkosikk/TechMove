@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace TechMove.Services;
+namespace TechMove.Api.Services;
 
 public class AgreementFileService(
     IWebHostEnvironment environment,
@@ -46,3 +46,4 @@ public class AgreementFileService(
         }
     }
 }
+

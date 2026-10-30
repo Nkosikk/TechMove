@@ -1,24 +1,23 @@
-using Microsoft.EntityFrameworkCore;
-using TechMove.Data;
 using TechMove.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddDbContext<TechMoveDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("TechMoveDb")));
-
-var agreementStorageOptions = builder.Configuration
-    .GetSection(AgreementStorageOptions.SectionName)
-    .Get<AgreementStorageOptions>() ?? new AgreementStorageOptions();
-builder.Services.AddSingleton(agreementStorageOptions);
-builder.Services.AddSingleton<AgreementFileValidator>();
-builder.Services.AddSingleton<AgreementFileService>();
-builder.Services.AddSingleton<ContractWorkflowService>();
-builder.Services.AddHttpClient<ICurrencyService, CurrencyService>(client =>
-    client.BaseAddress = new Uri(builder.Configuration["CurrencyApi:BaseUrl"]
-        ?? throw new InvalidOperationException("CurrencyApi:BaseUrl is not configured.")));
+builder.Services.AddOptions<TechMoveApiOptions>()
+    .Bind(builder.Configuration.GetSection(TechMoveApiOptions.SectionName))
+    .Validate(options => Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _),
+        "TechMoveApi:BaseUrl must be an absolute URL.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Username)
+        && !string.IsNullOrWhiteSpace(options.Password),
+        "TechMove API service credentials must be configured.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddHttpClient<TechMoveApiClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TechMoveApiOptions>>().Value;
+    client.BaseAddress = new Uri(options.BaseUrl);
+});
 
 var app = builder.Build();
 

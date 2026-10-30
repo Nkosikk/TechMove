@@ -1,0 +1,72 @@
+services:
+  sql-server-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: techmove-sql-server-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-TechMove_Strong_Password_2026!}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - techmove-sql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - techmove-network
+
+  glms-backend-api:
+    build:
+      context: .
+      dockerfile: TechMove.Api/Dockerfile
+    container_name: techmove-glms-backend-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__TechMoveDb: "Server=sql-server-db,1433;Database=TechMoveDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:-TechMove_Strong_Password_2026!};TrustServerCertificate=True;Encrypt=True"
+      Database__MigrateOnStartup: "true"
+      Jwt__Issuer: "TechMove.Api"
+      Jwt__Audience: "TechMove.Clients"
+      Jwt__Key: "${TECHMOVE_JWT_KEY:-DockerOnly-TechMove-Signing-Key-Change-Before-Production-2026}"
+      Jwt__ServiceUsername: "${TECHMOVE_API_USERNAME:-techmove-web}"
+      Jwt__ServicePassword: "${TECHMOVE_API_PASSWORD:-DevelopmentOnly-ChangeMe!}"
+      AgreementStorage__Path: "/app/data/agreements"
+      CurrencyApi__BaseUrl: "https://api.frankfurter.app/"
+    ports:
+      - "8081:8080"
+    volumes:
+      - techmove-agreements:/app/data/agreements
+    depends_on:
+      sql-server-db:
+        condition: service_healthy
+    networks:
+      - techmove-network
+
+  glms-frontend-web:
+    build:
+      context: .
+      dockerfile: TechMove/Dockerfile
+    container_name: techmove-glms-frontend-web
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ASPNETCORE_HTTP_PORTS: "8080"
+      TechMoveApi__BaseUrl: "http://glms-backend-api:8080/"
+      TechMoveApi__Username: "${TECHMOVE_API_USERNAME:-techmove-web}"
+      TechMoveApi__Password: "${TECHMOVE_API_PASSWORD:-DevelopmentOnly-ChangeMe!}"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - glms-backend-api
+    networks:
+      - techmove-network
+
+volumes:
+  techmove-sql-data:
+  techmove-agreements:
+
+networks:
+  techmove-network:
+    driver: bridge

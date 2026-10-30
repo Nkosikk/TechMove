@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using TechMove.Models;
+using TechMove.Api.Models;
 
-namespace TechMove.Data;
+namespace TechMove.Api.Data;
 
 public class TechMoveDbContext(DbContextOptions<TechMoveDbContext> options) : DbContext(options)
 {
@@ -34,3 +34,4 @@ public class TechMoveDbContext(DbContextOptions<TechMoveDbContext> options) : Db
             .HasMaxLength(20);
     }
 }
+

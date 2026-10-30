@@ -1,7 +1,8 @@
 ﻿using System.Text;
 using Microsoft.AspNetCore.Http;
-using TechMove.Models;
-using TechMove.Services;
+using TechMove.Api.Models;
+using TechMove.Api.Services;
+using TechMove.Contracts;
 
 namespace TechMove.Tests;
 

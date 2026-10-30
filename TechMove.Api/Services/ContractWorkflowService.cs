@@ -1,6 +1,7 @@
-using TechMove.Models;
+using TechMove.Api.Models;
+using TechMove.Contracts;
 
-namespace TechMove.Services;
+namespace TechMove.Api.Services;
 
 public class ContractWorkflowService
 {
@@ -16,3 +17,4 @@ public class ContractWorkflowService
         }
     }
 }
+

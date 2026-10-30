@@ -1,7 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using TechMove.Contracts;
 
-namespace TechMove.Models;
+namespace TechMove.Api.Models;
 
 public class ServiceRequest
 {
@@ -30,10 +31,3 @@ public class ServiceRequest
     public Contract? Contract { get; set; }
 }
 
-public enum ServiceRequestStatus
-{
-    New,
-    InProgress,
-    Completed,
-    Cancelled
-}

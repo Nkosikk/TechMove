@@ -1,4 +1,4 @@
-@model IReadOnlyCollection<Client>
+@model IReadOnlyCollection<ClientDto>
 @{
     ViewData["Title"] = "Clients";
 }
@@ -27,7 +27,7 @@ else
                     <td>@client.Name</td>
                     <td>@client.ContactDetails</td>
                     <td>@client.Region</td>
-                    <td>@client.Contracts.Count</td>
+                    <td>@client.ContractCount</td>
                     <td class="text-end"><a asp-action="Edit" asp-route-id="@client.Id" class="btn btn-sm btn-outline-secondary">Edit</a></td>
                 </tr>
             }

@@ -1,15 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using TechMove.Data;
+using TechMove.Contracts;
 using TechMove.Models;
 using TechMove.Services;
 
 namespace TechMove.Controllers;
 
-public class ContractsController(
-    TechMoveDbContext dbContext,
-    AgreementFileService agreementFileService) : Controller
+public sealed class ContractsController(TechMoveApiClient apiClient) : Controller
 {
     public async Task<IActionResult> Index(
         ContractStatus? status,
@@ -17,32 +14,10 @@ public class ContractsController(
         DateTime? toDate,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.Contracts
-            .AsNoTracking()
-            .Include(contract => contract.Client)
-            .AsQueryable();
-
-        if (status.HasValue)
-        {
-            query = query.Where(contract => contract.Status == status.Value);
-        }
-
-        if (fromDate.HasValue)
-        {
-            query = query.Where(contract => contract.EndDate >= fromDate.Value);
-        }
-
-        if (toDate.HasValue)
-        {
-            query = query.Where(contract => contract.StartDate <= toDate.Value);
-        }
-
         ViewBag.Status = status;
         ViewBag.FromDate = fromDate?.ToString("yyyy-MM-dd");
         ViewBag.ToDate = toDate?.ToString("yyyy-MM-dd");
-        return View(await query
-            .OrderByDescending(contract => contract.StartDate)
-            .ToListAsync(cancellationToken));
+        return View(await apiClient.GetContractsAsync(status, fromDate, toDate, cancellationToken));
     }
 
     public async Task<IActionResult> Create(CancellationToken cancellationToken)
@@ -52,9 +27,7 @@ public class ContractsController(
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(
-        ContractFormViewModel model,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(ContractFormViewModel model, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -62,35 +35,15 @@ public class ContractsController(
             return View(model);
         }
 
-        string? storedFileName = null;
         try
         {
-            storedFileName = await agreementFileService.SaveAsync(model.AgreementFile!, cancellationToken);
-            var contract = new Contract
-            {
-                ClientId = model.ClientId,
-                Title = model.Title,
-                StartDate = model.StartDate,
-                EndDate = model.EndDate,
-                Status = model.Status,
-                ServiceLevel = model.ServiceLevel,
-                AgreementStoredFileName = storedFileName,
-                AgreementOriginalFileName = Path.GetFileName(model.AgreementFile!.FileName)
-            };
-
-            dbContext.Contracts.Add(contract);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await apiClient.CreateContractAsync(ToRequest(model), model.AgreementFile!, cancellationToken);
         }
-        catch (InvalidDataException exception)
+        catch (HttpRequestException)
         {
-            ModelState.AddModelError(nameof(model.AgreementFile), exception.Message);
+            ModelState.AddModelError(string.Empty, "The contract could not be saved by the API. Check the agreement and try again.");
             await PopulateClientsAsync(cancellationToken, model.ClientId);
             return View(model);
-        }
-        catch
-        {
-            agreementFileService.Delete(storedFileName);
-            throw;
         }
 
         TempData["Success"] = "Contract and signed agreement created successfully.";
@@ -99,7 +52,7 @@ public class ContractsController(
 
     public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
     {
-        var contract = await dbContext.Contracts.FindAsync([id], cancellationToken);
+        var contract = await apiClient.GetContractAsync(id, cancellationToken);
         if (contract is null)
         {
             return NotFound();
@@ -115,67 +68,32 @@ public class ContractsController(
             EndDate = contract.EndDate,
             Status = contract.Status,
             ServiceLevel = contract.ServiceLevel,
-            HasAgreement = contract.AgreementStoredFileName is not null
+            HasAgreement = contract.HasAgreement
         });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(
-        int id,
-        ContractFormViewModel model,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(int id, ContractFormViewModel model, CancellationToken cancellationToken)
     {
         if (id != model.Id)
         {
             return NotFound();
         }
-
         if (!ModelState.IsValid)
         {
             await PopulateClientsAsync(cancellationToken, model.ClientId);
             return View(model);
         }
 
-        var contract = await dbContext.Contracts.FindAsync([id], cancellationToken);
-        if (contract is null)
-        {
-            return NotFound();
-        }
-
-        string? replacementFileName = null;
-        var previousFileName = contract.AgreementStoredFileName;
         try
         {
-            if (model.AgreementFile is not null)
-            {
-                replacementFileName = await agreementFileService.SaveAsync(model.AgreementFile, cancellationToken);
-                contract.AgreementStoredFileName = replacementFileName;
-                contract.AgreementOriginalFileName = Path.GetFileName(model.AgreementFile.FileName);
-            }
-
-            contract.ClientId = model.ClientId;
-            contract.Title = model.Title;
-            contract.StartDate = model.StartDate;
-            contract.EndDate = model.EndDate;
-            contract.Status = model.Status;
-            contract.ServiceLevel = model.ServiceLevel;
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await apiClient.UpdateContractAsync(id, ToRequest(model), model.AgreementFile, cancellationToken);
         }
-        catch (InvalidDataException exception)
+        catch (HttpRequestException)
         {
-            ModelState.AddModelError(nameof(model.AgreementFile), exception.Message);
+            ModelState.AddModelError(string.Empty, "The contract could not be updated by the API. Check the agreement and try again.");
             await PopulateClientsAsync(cancellationToken, model.ClientId);
             return View(model);
-        }
-        catch
-        {
-            agreementFileService.Delete(replacementFileName);
-            throw;
-        }
-
-        if (replacementFileName is not null)
-        {
-            agreementFileService.Delete(previousFileName);
         }
 
         TempData["Success"] = "Contract updated successfully.";
@@ -184,31 +102,25 @@ public class ContractsController(
 
     public async Task<IActionResult> DownloadAgreement(int id, CancellationToken cancellationToken)
     {
-        var contract = await dbContext.Contracts
-            .AsNoTracking()
-            .SingleOrDefaultAsync(contract => contract.Id == id, cancellationToken);
-        if (contract?.AgreementStoredFileName is null)
-        {
-            return NotFound();
-        }
-
-        try
-        {
-            var stream = agreementFileService.OpenRead(contract.AgreementStoredFileName);
-            return File(stream, "application/pdf", contract.AgreementOriginalFileName ?? "agreement.pdf");
-        }
-        catch (FileNotFoundException)
-        {
-            return NotFound();
-        }
+        var agreement = await apiClient.DownloadAgreementAsync(id, cancellationToken);
+        return agreement is null
+            ? NotFound()
+            : File(agreement.Content, agreement.ContentType, agreement.FileName);
     }
 
     private async Task PopulateClientsAsync(CancellationToken cancellationToken, int? selectedId = null)
     {
-        var clients = await dbContext.Clients
-            .AsNoTracking()
-            .OrderBy(client => client.Name)
-            .ToListAsync(cancellationToken);
-        ViewBag.Clients = new SelectList(clients, nameof(Client.Id), nameof(Client.Name), selectedId);
+        var clients = await apiClient.GetClientsAsync(cancellationToken);
+        ViewBag.Clients = new SelectList(clients, nameof(ClientDto.Id), nameof(ClientDto.Name), selectedId);
     }
+
+    private static ContractUpsertRequest ToRequest(ContractFormViewModel model) => new()
+    {
+        ClientId = model.ClientId,
+        Title = model.Title,
+        StartDate = model.StartDate,
+        EndDate = model.EndDate,
+        Status = model.Status,
+        ServiceLevel = model.ServiceLevel
+    };
 }

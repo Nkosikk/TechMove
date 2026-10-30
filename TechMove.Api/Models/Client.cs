@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace TechMove.Models;
+namespace TechMove.Api.Models;
 
 public class Client
 {
@@ -17,3 +17,4 @@ public class Client
 
     public ICollection<Contract> Contracts { get; set; } = [];
 }
+
