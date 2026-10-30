@@ -1,35 +1,68 @@
-﻿@{
+﻿@model DashboardDto
+@{
     ViewData["Title"] = "Dashboard";
+    var isAdmin = User.IsInRole(AppRoles.Admin);
 }
 
-<div class="p-5 mb-4 bg-body-tertiary rounded-3">
-    <div class="container-fluid py-3">
-        <h1 class="display-5 fw-bold">Global Logistics Management</h1>
-        <p class="col-lg-9 fs-5">A central hub for clients, signed freight contracts, service requests, and international cost conversion.</p>
-        <a asp-controller="Contracts" asp-action="Create" class="btn btn-primary btn-lg">Create a contract</a>
+<div class="tm-hero mb-4">
+    <div>
+        <span class="tm-eyebrow">@(isAdmin ? "Control centre" : "My logistics workspace")</span>
+        <h1 class="display-5">@(isAdmin ? "Operations & Approval Dashboard" : $"Welcome, {User.Identity?.Name}")</h1>
+        <p class="col-lg-9 fs-5">@(isAdmin ? "Review pending work, monitor platform activity, and keep freight operations moving." : "Manage your clients, submit signed contracts for approval, and track service delivery from one secure workspace.")</p>
+        <a asp-controller="Contracts" asp-action="Create" class="btn btn-primary btn-lg">Submit a contract</a>
     </div>
 </div>
 
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg"><div class="tm-stat"><span>Clients</span><strong>@Model.ClientCount</strong></div></div>
+    <div class="col-6 col-lg"><div class="tm-stat"><span>Contracts</span><strong>@Model.ContractCount</strong></div></div>
+    <div class="col-6 col-lg"><div class="tm-stat tm-stat-warning"><span>Pending contracts</span><strong>@Model.PendingContractCount</strong></div></div>
+    <div class="col-6 col-lg"><div class="tm-stat"><span>Requests</span><strong>@Model.ServiceRequestCount</strong></div></div>
+    @if (isAdmin)
+    {
+        <div class="col-6 col-lg"><div class="tm-stat tm-stat-accent"><span>Users</span><strong>@Model.UserCount</strong></div></div>
+    }
+</div>
+
 <div class="row g-4">
-    <div class="col-md-4">
-        <div class="card h-100 shadow-sm"><div class="card-body">
-            <h2 class="h4">Clients</h2>
-            <p>Maintain customer contact details and operating regions.</p>
-            <a asp-controller="Clients" asp-action="Index" class="btn btn-outline-primary">Manage clients</a>
-        </div></div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h4 mb-0">@(isAdmin ? "Contracts awaiting approval" : "My draft contracts")</h2><span class="badge text-bg-warning">@Model.PendingContractCount</span></div>
+                @if (Model.PendingContracts.Count == 0) { <p class="text-muted">No contracts are waiting in the queue.</p> }
+                @foreach (var contract in Model.PendingContracts)
+                {
+                    <div class="tm-queue-item">
+                        <div><strong>@contract.Title</strong><small>@contract.ClientName · @contract.OwnerName</small></div>
+                        @if (isAdmin)
+                        {
+                            <form asp-controller="Contracts" asp-action="Approve" method="post"><input type="hidden" name="id" value="@contract.Id" /><button class="btn btn-sm btn-success">Approve</button></form>
+                        }
+                        else
+                        {
+                            <a asp-controller="Contracts" asp-action="Edit" asp-route-id="@contract.Id" class="btn btn-sm btn-outline-secondary">Review</a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
     </div>
-    <div class="col-md-4">
-        <div class="card h-100 shadow-sm"><div class="card-body">
-            <h2 class="h4">Contracts</h2>
-            <p>Track agreement dates, statuses, service levels, and signed PDFs.</p>
-            <a asp-controller="Contracts" asp-action="Index" class="btn btn-outline-primary">Find contracts</a>
-        </div></div>
-    </div>
-    <div class="col-md-4">
-        <div class="card h-100 shadow-sm"><div class="card-body">
-            <h2 class="h4">Service requests</h2>
-            <p>Create valid requests and automatically convert USD costs to ZAR.</p>
-            <a asp-controller="ServiceRequests" asp-action="Index" class="btn btn-outline-primary">Track requests</a>
-        </div></div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h4 mb-0">@(isAdmin ? "Requests awaiting approval" : "My new requests")</h2><span class="badge text-bg-info">@Model.PendingServiceRequestCount</span></div>
+                @if (Model.PendingServiceRequests.Count == 0) { <p class="text-muted">No service requests are waiting in the queue.</p> }
+                @foreach (var request in Model.PendingServiceRequests)
+                {
+                    <div class="tm-queue-item">
+                        <div><strong>@request.ContractTitle</strong><small>@request.Description · @request.OwnerName</small></div>
+                        @if (isAdmin)
+                        {
+                            <form asp-controller="ServiceRequests" asp-action="Approve" method="post"><input type="hidden" name="id" value="@request.Id" /><button class="btn btn-sm btn-success">Approve</button></form>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 </div>

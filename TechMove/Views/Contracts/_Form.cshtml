@@ -2,18 +2,19 @@
 
 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 <div class="row">
-    <div class="col-md-7 mb-3">
+    <div class="col-md-8 mb-3">
         <label asp-for="ClientId" class="form-label"></label>
         <select asp-for="ClientId" asp-items="ViewBag.Clients" class="form-select">
             <option value="">Select a client</option>
         </select>
         <span asp-validation-for="ClientId" class="text-danger"></span>
     </div>
-    <div class="col-md-5 mb-3">
-        <label asp-for="Status" class="form-label"></label>
-        <select asp-for="Status" asp-items="Html.GetEnumSelectList<ContractStatus>()" class="form-select"></select>
-        <span asp-validation-for="Status" class="text-danger"></span>
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Approval status</label>
+        <div class="tm-readonly-status">Pending admin approval</div>
+        <input asp-for="Status" type="hidden" value="Draft" />
     </div>
+<div class="alert alert-info">Creating or editing a contract submits it as a draft. A TechMove administrator must approve it before service requests can be created.</div>
 </div>
 <div class="mb-3">
     <label asp-for="Title" class="form-label"></label>

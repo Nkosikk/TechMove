@@ -2,6 +2,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TechMove.Contracts;
 
+public static class AppRoles
+{
+    public const string Admin = "Admin";
+    public const string User = "User";
+}
+
 public enum ContractStatus
 {
     Draft,
@@ -32,6 +38,7 @@ public sealed class ClientDto
     public string Region { get; set; } = string.Empty;
 
     public int ContractCount { get; set; }
+    public string OwnerName { get; set; } = string.Empty;
 }
 
 public sealed class ContractDto
@@ -46,6 +53,10 @@ public sealed class ContractDto
     public string ServiceLevel { get; set; } = string.Empty;
     public bool HasAgreement { get; set; }
     public string? AgreementOriginalFileName { get; set; }
+    public string OwnerName { get; set; } = string.Empty;
+    public string? ApprovedByName { get; set; }
+    public DateTime? ApprovedAtUtc { get; set; }
+    public string? ApprovalNote { get; set; }
 }
 
 public sealed class ContractUpsertRequest
@@ -80,6 +91,10 @@ public sealed class ServiceRequestDto
     public decimal ExchangeRate { get; set; }
     public ServiceRequestStatus Status { get; set; }
     public DateTime CreatedAtUtc { get; set; }
+    public string OwnerName { get; set; } = string.Empty;
+    public string? ApprovedByName { get; set; }
+    public DateTime? ApprovedAtUtc { get; set; }
+    public string? ApprovalNote { get; set; }
 }
 
 public sealed class CreateServiceRequestRequest
@@ -96,5 +111,37 @@ public sealed class CreateServiceRequestRequest
 
 public sealed record UpdateContractStatusRequest(ContractStatus Status);
 public sealed record UpdateServiceRequestStatusRequest(ServiceRequestStatus Status);
+public sealed record ApprovalRequest([property: StringLength(500)] string? Note);
 public sealed record LoginRequest(string Username, string Password);
-public sealed record LoginResponse(string AccessToken, DateTime ExpiresAtUtc);
+public sealed record LoginResponse(
+    string AccessToken,
+    DateTime ExpiresAtUtc,
+    string DisplayName,
+    IReadOnlyCollection<string> Roles);
+
+public sealed class RegisterRequest
+{
+    [Required, StringLength(100)]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [Required, EmailAddress, StringLength(256)]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, StringLength(100, MinimumLength = 8), DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+
+    [Required, Compare(nameof(Password)), DataType(DataType.Password), Display(Name = "Confirm password")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+public sealed class DashboardDto
+{
+    public int ClientCount { get; set; }
+    public int ContractCount { get; set; }
+    public int PendingContractCount { get; set; }
+    public int ServiceRequestCount { get; set; }
+    public int PendingServiceRequestCount { get; set; }
+    public int UserCount { get; set; }
+    public IReadOnlyCollection<ContractDto> PendingContracts { get; set; } = [];
+    public IReadOnlyCollection<ServiceRequestDto> PendingServiceRequests { get; set; } = [];
+}

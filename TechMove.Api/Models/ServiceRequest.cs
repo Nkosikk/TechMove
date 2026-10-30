@@ -28,6 +28,16 @@ public class ServiceRequest
     [Display(Name = "Created at")]
     public DateTime CreatedAtUtc { get; set; }
 
+    public string? OwnerId { get; set; }
+    public AppUser? Owner { get; set; }
+
+    public string? ApprovedById { get; set; }
+    public AppUser? ApprovedBy { get; set; }
+    public DateTime? ApprovedAtUtc { get; set; }
+
+    [StringLength(500)]
+    public string? ApprovalNote { get; set; }
+
     public Contract? Contract { get; set; }
 }
 

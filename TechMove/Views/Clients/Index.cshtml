@@ -19,7 +19,7 @@ else
 {
     <div class="table-responsive">
         <table class="table table-striped align-middle">
-            <thead><tr><th>Name</th><th>Contact details</th><th>Region</th><th>Contracts</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Contact details</th><th>Region</th>@if (User.IsInRole(AppRoles.Admin)) { <th>Owner</th> }<th>Contracts</th><th></th></tr></thead>
             <tbody>
             @foreach (var client in Model)
             {
@@ -27,6 +27,7 @@ else
                     <td>@client.Name</td>
                     <td>@client.ContactDetails</td>
                     <td>@client.Region</td>
+                    @if (User.IsInRole(AppRoles.Admin)) { <td>@client.OwnerName</td> }
                     <td>@client.ContractCount</td>
                     <td class="text-end"><a asp-action="Edit" asp-route-id="@client.Id" class="btn btn-sm btn-outline-secondary">Edit</a></td>
                 </tr>

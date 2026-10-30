@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using TechMove.Contracts;
@@ -44,6 +45,7 @@ public sealed class ServiceRequestsController(TechMoveApiClient apiClient) : Con
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> UpdateStatus(
         int id,
         ServiceRequestStatus status,
@@ -54,11 +56,20 @@ public sealed class ServiceRequestsController(TechMoveApiClient apiClient) : Con
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Approve(int id, string? note, CancellationToken cancellationToken)
+    {
+        await apiClient.ApproveServiceRequestAsync(id, note, cancellationToken);
+        TempData["Success"] = "Service request approved and moved into progress.";
+        return RedirectToAction(nameof(Index));
+    }
+
     private async Task PopulateContractsAsync(CancellationToken cancellationToken, int? selectedId = null)
     {
         var contracts = await apiClient.GetContractsAsync(null, null, null, cancellationToken);
         var availableContracts = contracts
-            .Where(contract => contract.Status is not ContractStatus.Expired and not ContractStatus.OnHold)
+            .Where(contract => contract.Status == ContractStatus.Active)
             .OrderBy(contract => contract.Title)
             .Select(contract => new
             {

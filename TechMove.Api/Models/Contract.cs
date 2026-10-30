@@ -30,6 +30,16 @@ public class Contract
     [StringLength(260)]
     public string? AgreementOriginalFileName { get; set; }
 
+    public string? OwnerId { get; set; }
+    public AppUser? Owner { get; set; }
+
+    public string? ApprovedById { get; set; }
+    public AppUser? ApprovedBy { get; set; }
+    public DateTime? ApprovedAtUtc { get; set; }
+
+    [StringLength(500)]
+    public string? ApprovalNote { get; set; }
+
     public Client? Client { get; set; }
 
     public ICollection<ServiceRequest> ServiceRequests { get; set; } = [];

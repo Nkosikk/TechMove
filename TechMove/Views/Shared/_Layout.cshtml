@@ -26,8 +26,10 @@
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
                         <li class="nav-item">
-                            <a class="nav-link @(currentController == "Home" ? "active" : null)" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link @(currentController == "Home" ? "active" : null)" asp-area="" asp-controller="Home" asp-action="Index">Dashboard</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link @(currentController == "Clients" ? "active" : null)" asp-area="" asp-controller="Clients" asp-action="Index">Clients</a>
@@ -38,6 +40,23 @@
                         <li class="nav-item">
                             <a class="nav-link @(currentController == "ServiceRequests" ? "active" : null)" asp-area="" asp-controller="ServiceRequests" asp-action="Index">Service Requests</a>
                         </li>
+                        }
+                    </ul>
+                    <ul class="navbar-nav align-items-sm-center">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item"><span class="tm-user-pill">@(User.IsInRole(AppRoles.Admin) ? "Admin" : "User") · @User.Identity.Name</span></li>
+                            <li class="nav-item">
+                                <form asp-controller="Account" asp-action="Logout" method="post">
+                                    <button type="submit" class="nav-link btn btn-link">Sign out</button>
+                                </form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item"><a class="nav-link @(currentController == "Account" ? "active" : null)" asp-controller="Account" asp-action="Login">Sign in</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Account" asp-action="Register">Register</a></li>
+                        }
                     </ul>
                 </div>
             </div>

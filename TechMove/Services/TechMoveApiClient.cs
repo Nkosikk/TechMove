@@ -3,7 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication;
 using TechMove.Contracts;
 
 namespace TechMove.Services;
@@ -12,13 +12,18 @@ public sealed record AgreementDownload(byte[] Content, string FileName, string C
 
 public sealed class TechMoveApiClient(
     HttpClient httpClient,
-    IOptions<TechMoveApiOptions> options,
-    TimeProvider timeProvider)
+    IHttpContextAccessor httpContextAccessor)
 {
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
-    private readonly TechMoveApiOptions _options = options.Value;
-    private readonly SemaphoreSlim _tokenLock = new(1, 1);
-    private LoginResponse? _token;
+
+    public Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken) =>
+        SendAuthenticationAsync("api/auth/login", request, cancellationToken);
+
+    public Task<LoginResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken) =>
+        SendAuthenticationAsync("api/auth/register", request, cancellationToken);
+
+    public Task<DashboardDto> GetDashboardAsync(CancellationToken cancellationToken) =>
+        GetAsync<DashboardDto>("api/dashboard", cancellationToken);
 
     public Task<IReadOnlyList<ClientDto>> GetClientsAsync(CancellationToken cancellationToken) =>
         GetAsync<IReadOnlyList<ClientDto>>("api/clients", cancellationToken);
@@ -71,6 +76,9 @@ public sealed class TechMoveApiClient(
         CancellationToken cancellationToken) =>
         SendContractAsync(HttpMethod.Put, $"api/contracts/{id}", request, agreementFile, cancellationToken);
 
+    public async Task ApproveContractAsync(int id, string? note, CancellationToken cancellationToken) =>
+        await SendJsonAsync(HttpMethod.Post, $"api/contracts/{id}/approve", new ApprovalRequest(note), cancellationToken);
+
     public async Task<AgreementDownload?> DownloadAgreementAsync(int id, CancellationToken cancellationToken)
     {
         using var request = await CreateRequestAsync(HttpMethod.Get, $"api/contracts/{id}/agreement", cancellationToken);
@@ -105,6 +113,9 @@ public sealed class TechMoveApiClient(
             $"api/service-requests/{id}/status",
             new UpdateServiceRequestStatusRequest(status),
             cancellationToken);
+
+    public async Task ApproveServiceRequestAsync(int id, string? note, CancellationToken cancellationToken) =>
+        await SendJsonAsync(HttpMethod.Post, $"api/service-requests/{id}/approve", new ApprovalRequest(note), cancellationToken);
 
     private async Task<T> GetAsync<T>(string path, CancellationToken cancellationToken)
     {
@@ -172,41 +183,29 @@ public sealed class TechMoveApiClient(
         string path,
         CancellationToken cancellationToken)
     {
-        var token = await GetTokenAsync(cancellationToken);
+        var token = await GetTokenAsync();
         var request = new HttpRequestMessage(method, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return request;
     }
 
-    private async Task<string> GetTokenAsync(CancellationToken cancellationToken)
+    private async Task<string> GetTokenAsync()
     {
-        if (_token is not null && _token.ExpiresAtUtc > timeProvider.GetUtcNow().UtcDateTime.AddMinutes(1))
-        {
-            return _token.AccessToken;
-        }
+        var context = httpContextAccessor.HttpContext
+            ?? throw new InvalidOperationException("No active HTTP request is available.");
+        return await context.GetTokenAsync("access_token")
+            ?? throw new UnauthorizedAccessException("The current session does not contain an API access token.");
+    }
 
-        await _tokenLock.WaitAsync(cancellationToken);
-        try
-        {
-            if (_token is not null && _token.ExpiresAtUtc > timeProvider.GetUtcNow().UtcDateTime.AddMinutes(1))
-            {
-                return _token.AccessToken;
-            }
-
-            using var response = await httpClient.PostAsJsonAsync(
-                "api/auth/token",
-                new LoginRequest(_options.Username, _options.Password),
-                JsonOptions,
-                cancellationToken);
-            response.EnsureSuccessStatusCode();
-            _token = await response.Content.ReadFromJsonAsync<LoginResponse>(JsonOptions, cancellationToken)
-                ?? throw new InvalidOperationException("The TechMove API did not return an access token.");
-            return _token.AccessToken;
-        }
-        finally
-        {
-            _tokenLock.Release();
-        }
+    private async Task<LoginResponse> SendAuthenticationAsync<T>(
+        string path,
+        T value,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.PostAsJsonAsync(path, value, JsonOptions, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<LoginResponse>(JsonOptions, cancellationToken)
+            ?? throw new InvalidOperationException("The TechMove API returned an empty authentication response.");
     }
 
     private static JsonSerializerOptions CreateJsonOptions()

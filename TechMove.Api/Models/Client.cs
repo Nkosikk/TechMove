@@ -15,6 +15,9 @@ public class Client
     [Required, StringLength(100)]
     public string Region { get; set; } = string.Empty;
 
+    public string? OwnerId { get; set; }
+    public AppUser? Owner { get; set; }
+
     public ICollection<Contract> Contracts { get; set; } = [];
 }
 

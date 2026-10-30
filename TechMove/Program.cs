@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using TechMove.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,10 +9,18 @@ builder.Services.AddOptions<TechMoveApiOptions>()
     .Bind(builder.Configuration.GetSection(TechMoveApiOptions.SectionName))
     .Validate(options => Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _),
         "TechMoveApi:BaseUrl must be an absolute URL.")
-    .Validate(options => !string.IsNullOrWhiteSpace(options.Username)
-        && !string.IsNullOrWhiteSpace(options.Password),
-        "TechMove API service credentials must be configured.")
     .ValidateOnStart();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+    });
+builder.Services.AddAuthorization(options =>
+    options.FallbackPolicy = options.DefaultPolicy);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient<TechMoveApiClient>((serviceProvider, client) =>
 {
@@ -32,6 +41,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();

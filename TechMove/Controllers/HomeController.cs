@@ -1,14 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using TechMove.Models;
+using TechMove.Services;
 
 namespace TechMove.Controllers
 {
-    public class HomeController : Controller
+    public class HomeController(TechMoveApiClient apiClient) : Controller
     {
-        public IActionResult Index()
+        public async Task<IActionResult> Index(CancellationToken cancellationToken)
         {
-            return View();
+            return View(await apiClient.GetDashboardAsync(cancellationToken));
         }
 
         public IActionResult Privacy()

@@ -42,13 +42,14 @@ else
 {
     <div class="table-responsive">
         <table class="table table-striped align-middle">
-            <thead><tr><th>Contract</th><th>Client</th><th>Dates</th><th>Status</th><th>Service level</th><th>Agreement</th><th></th></tr></thead>
+            <thead><tr><th>Contract</th><th>Client</th>@if (User.IsInRole(AppRoles.Admin)) { <th>Owner</th> }<th>Dates</th><th>Status</th><th>Service level</th><th>Agreement</th><th></th></tr></thead>
             <tbody>
             @foreach (var contract in Model)
             {
                 <tr>
                     <td>@contract.Title</td>
                     <td>@contract.ClientName</td>
+                    @if (User.IsInRole(AppRoles.Admin)) { <td>@contract.OwnerName</td> }
                     <td>@contract.StartDate.ToString("d") – @contract.EndDate.ToString("d")</td>
                     <td><span class="badge text-bg-secondary">@contract.Status</span></td>
                     <td>@contract.ServiceLevel</td>
@@ -59,7 +60,14 @@ else
                         }
                     </td>
                     <td class="text-end text-nowrap">
-                        <a asp-controller="ServiceRequests" asp-action="Create" asp-route-contractId="@contract.Id" class="btn btn-sm btn-outline-primary">New request</a>
+                        @if (contract.Status == ContractStatus.Active)
+                        {
+                            <a asp-controller="ServiceRequests" asp-action="Create" asp-route-contractId="@contract.Id" class="btn btn-sm btn-outline-primary">New request</a>
+                        }
+                        @if (User.IsInRole(AppRoles.Admin) && contract.Status == ContractStatus.Draft)
+                        {
+                            <form asp-action="Approve" method="post" class="d-inline"><input type="hidden" name="id" value="@contract.Id" /><button class="btn btn-sm btn-success">Approve</button></form>
+                        }
                         <a asp-action="Edit" asp-route-id="@contract.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
                     </td>
                 </tr>

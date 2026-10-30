@@ -55,6 +55,7 @@ public class AgreementFileValidatorTests
 public class ContractWorkflowServiceTests
 {
     [Theory]
+    [InlineData(ContractStatus.Draft)]
     [InlineData(ContractStatus.Expired)]
     [InlineData(ContractStatus.OnHold)]
     public void EnsureServiceRequestAllowed_WithBlockedContract_Throws(ContractStatus status)
@@ -65,13 +66,11 @@ public class ContractWorkflowServiceTests
         Assert.Throws<InvalidOperationException>(() => service.EnsureServiceRequestAllowed(contract));
     }
 
-    [Theory]
-    [InlineData(ContractStatus.Draft)]
-    [InlineData(ContractStatus.Active)]
-    public void CanCreateServiceRequest_WithAllowedContract_ReturnsTrue(ContractStatus status)
+    [Fact]
+    public void CanCreateServiceRequest_WithActiveContract_ReturnsTrue()
     {
         var service = new ContractWorkflowService();
-        var contract = new Contract { Status = status };
+        var contract = new Contract { Status = ContractStatus.Active };
 
         Assert.True(service.CanCreateServiceRequest(contract));
     }

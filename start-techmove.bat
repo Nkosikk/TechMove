@@ -48,6 +48,10 @@ docker rm -f "%WEB_CONTAINER%" >nul 2>&1
 docker run -d --name "%WEB_CONTAINER%" --network "%NETWORK%" -p 8080:8080 -e "TechMoveApi__BaseUrl=http://%API_CONTAINER%:8080/" techmove-web
 if errorlevel 1 goto :error
 
+echo Waiting for the TechMove API...
+call :wait_for_api
+if errorlevel 1 echo WARNING: The API is still initializing. Swagger may need a browser refresh.
+
 echo.
 echo TechMove is starting:
 echo   Website:    http://localhost:8080
@@ -57,6 +61,7 @@ echo.
 echo Use "docker logs techmove-api" if the API needs time to initialize.
 echo The containers will continue running after this window closes.
 start "" "http://localhost:8080"
+start "" "http://localhost:8081/swagger"
 echo.
 pause
 exit /b 0
@@ -66,6 +71,21 @@ echo.
 echo ERROR: TechMove could not be started. Review the Docker output above.
 pause
 exit /b 1
+
+:wait_for_api
+set /a API_WAIT_COUNT=0
+
+:wait_for_api_retry
+powershell -NoProfile -Command "try { $response = Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:8081/health' -TimeoutSec 3; if ($response.StatusCode -eq 200) { exit 0 } }; catch {}; exit 1" >nul 2>&1
+if not errorlevel 1 (
+	echo TechMove API is ready.
+	exit /b 0
+)
+
+set /a API_WAIT_COUNT+=1
+if %API_WAIT_COUNT% GEQ 30 exit /b 1
+timeout /t 2 /nobreak >nul
+goto :wait_for_api_retry
 
 :start_docker
 set "DOCKER_DESKTOP="

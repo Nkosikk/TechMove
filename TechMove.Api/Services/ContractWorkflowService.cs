@@ -6,7 +6,7 @@ namespace TechMove.Api.Services;
 public class ContractWorkflowService
 {
     public bool CanCreateServiceRequest(Contract contract) =>
-        contract.Status is not ContractStatus.Expired and not ContractStatus.OnHold;
+        contract.Status == ContractStatus.Active;
 
     public void EnsureServiceRequestAllowed(Contract contract)
     {

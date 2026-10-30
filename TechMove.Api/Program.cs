@@ -1,11 +1,14 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TechMove.Api.Data;
+using TechMove.Api.Models;
 using TechMove.Api.Security;
 using TechMove.Api.Services;
+using TechMove.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +19,20 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<TechMoveDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("TechMoveDb")));
+builder.Services.AddIdentityCore<AppUser>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+    })
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<TechMoveDbContext>()
+    .AddDefaultTokenProviders();
+builder.Services.Configure<AdminSeedOptions>(
+    builder.Configuration.GetSection(AdminSeedOptions.SectionName));
 
 var agreementStorageOptions = builder.Configuration
     .GetSection(AgreementStorageOptions.SectionName)
@@ -55,7 +72,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole(AppRoles.Admin)));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<JwtTokenService>();
 
@@ -74,6 +92,7 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 {
     await ApplyMigrationsWithRetryAsync(app.Services, app.Logger);
 }
+await SeedIdentityAsync(app.Services, app.Configuration);
 
 app.Run();
 
@@ -97,6 +116,56 @@ static async Task ApplyMigrationsWithRetryAsync(IServiceProvider services, ILogg
                 maximumAttempts);
             await Task.Delay(TimeSpan.FromSeconds(5));
         }
+    }
+}
+
+static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration configuration)
+{
+    await using var scope = services.CreateAsyncScope();
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    foreach (var roleName in new[] { AppRoles.Admin, AppRoles.User })
+    {
+        if (!await roleManager.RoleExistsAsync(roleName))
+        {
+            var result = await roleManager.CreateAsync(new IdentityRole(roleName));
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException($"Could not create the {roleName} role.");
+            }
+        }
+    }
+
+    var seed = configuration.GetSection(AdminSeedOptions.SectionName).Get<AdminSeedOptions>();
+    if (seed is null
+        || string.IsNullOrWhiteSpace(seed.Email)
+        || string.IsNullOrWhiteSpace(seed.Password)
+        || string.IsNullOrWhiteSpace(seed.DisplayName))
+    {
+        return;
+    }
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+    var admin = await userManager.FindByEmailAsync(seed.Email);
+    if (admin is null)
+    {
+        admin = new AppUser
+        {
+            UserName = seed.Email,
+            Email = seed.Email,
+            DisplayName = seed.DisplayName,
+            EmailConfirmed = true
+        };
+        var result = await userManager.CreateAsync(admin, seed.Password);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Could not seed the administrator: {string.Join("; ", result.Errors.Select(error => error.Description))}");
+        }
+    }
+
+    if (!await userManager.IsInRoleAsync(admin, AppRoles.Admin))
+    {
+        await userManager.AddToRoleAsync(admin, AppRoles.Admin);
     }
 }
 

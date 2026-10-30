@@ -19,19 +19,26 @@ else
 {
     <div class="table-responsive">
         <table class="table table-striped align-middle">
-            <thead><tr><th>Created</th><th>Contract / Client</th><th>Description</th><th>USD</th><th>ZAR</th><th>Rate</th><th>Status</th></tr></thead>
+            <thead><tr><th>Created</th><th>Contract / Client</th>@if (User.IsInRole(AppRoles.Admin)) { <th>Owner</th> }<th>Description</th><th>USD</th><th>ZAR</th><th>Rate</th><th>Status</th></tr></thead>
             <tbody>
             @foreach (var request in Model)
             {
                 <tr>
                     <td>@request.CreatedAtUtc.ToLocalTime().ToString("g")</td>
                     <td>@request.ContractTitle<br /><small class="text-muted">@request.ClientName</small></td>
+                    @if (User.IsInRole(AppRoles.Admin)) { <td>@request.OwnerName</td> }
                     <td>@request.Description</td>
                     <td>@request.CostUsd.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-US"))</td>
                     <td>@request.LocalCostZar.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-ZA"))</td>
                     <td>@request.ExchangeRate.ToString("0.0000")</td>
                     <td>
-                        <form asp-action="UpdateStatus" method="post" class="d-flex gap-2">
+                        @if (User.IsInRole(AppRoles.Admin))
+                        {
+                            @if (request.Status == ServiceRequestStatus.New)
+                            {
+                                <form asp-action="Approve" method="post" class="mb-2"><input type="hidden" name="id" value="@request.Id" /><button class="btn btn-sm btn-success w-100">Approve</button></form>
+                            }
+                            <form asp-action="UpdateStatus" method="post" class="d-flex gap-2">
                             <input type="hidden" name="id" value="@request.Id" />
                             <select name="status" class="form-select form-select-sm">
                                 @foreach (var status in Enum.GetValues<ServiceRequestStatus>())
@@ -47,7 +54,12 @@ else
                                 }
                             </select>
                             <button class="btn btn-sm btn-outline-secondary">Save</button>
-                        </form>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">@request.Status</span>
+                        }
                     </td>
                 </tr>
             }

@@ -186,6 +186,52 @@ form.card,
 
 .badge { padding: .48rem .65rem; border-radius: .55rem; }
 
+.tm-user-pill {
+  display: inline-block;
+  padding: .5rem .75rem;
+  color: #dffaf7;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 2rem;
+  font-size: .85rem;
+}
+
+.tm-hero {
+  padding: 3rem;
+  color: #fff;
+  background: linear-gradient(125deg, var(--tm-navy), #1d4ed8 60%, var(--tm-teal));
+  border-radius: 1.4rem;
+  box-shadow: 0 18px 45px rgba(16, 42, 67, .24);
+}
+
+.tm-hero h1 { color: #fff; }
+.tm-hero h1::after { background: linear-gradient(90deg, #fcd34d, #67e8f9); }
+.tm-eyebrow { color: var(--tm-gold); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: .75rem; }
+
+.tm-stat {
+  height: 100%;
+  padding: 1.2rem;
+  background: #fff;
+  border-left: 5px solid var(--tm-cyan);
+  border-radius: 1rem;
+  box-shadow: 0 8px 24px rgba(56, 89, 119, .1);
+}
+
+.tm-stat span { display: block; color: #627d98; font-size: .82rem; font-weight: 700; text-transform: uppercase; }
+.tm-stat strong { color: var(--tm-navy); font-size: 2rem; }
+.tm-stat-warning { border-left-color: var(--tm-gold); }
+.tm-stat-accent { border-left-color: var(--tm-teal); }
+
+.tm-queue-item { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .9rem 0; border-top: 1px solid #e6eef5; }
+.tm-queue-item small { display: block; color: #627d98; }
+.tm-readonly-status { min-height: 2.7rem; padding: .7rem .85rem; color: #92400e; background: #fef3c7; border-radius: .65rem; font-weight: 700; }
+
+.tm-auth-shell { padding: 2rem 0; }
+.tm-auth-panel { display: grid; grid-template-columns: 1fr minmax(320px, 480px); align-items: center; gap: 4rem; max-width: 1050px; margin: 0 auto; }
+.tm-auth-copy { padding: 2rem; }
+.tm-auth-copy h1 { margin-top: .75rem; font-size: clamp(2.5rem, 5vw, 4rem); }
+.tm-auth-card { width: 100%; max-width: 650px; }
+.tm-empty-state { max-width: 720px; }
+
 .tm-footer {
   position: absolute;
   bottom: 0;
@@ -199,4 +245,7 @@ form.card,
   .tm-navbar .navbar-nav { margin: .8rem 0 0; }
   .tm-navbar .nav-link { margin-bottom: .25rem; }
   .tm-content { padding-top: 1.4rem; }
+  .tm-hero { padding: 2rem 1.4rem; }
+  .tm-auth-panel { grid-template-columns: 1fr; gap: 1rem; }
+  .tm-auth-copy { padding: 1rem 0; }
 }

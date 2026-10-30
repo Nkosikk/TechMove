@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using TechMove.Contracts;
@@ -106,6 +107,15 @@ public sealed class ContractsController(TechMoveApiClient apiClient) : Controlle
         return agreement is null
             ? NotFound()
             : File(agreement.Content, agreement.ContentType, agreement.FileName);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Approve(int id, string? note, CancellationToken cancellationToken)
+    {
+        await apiClient.ApproveContractAsync(id, note, cancellationToken);
+        TempData["Success"] = "Contract approved and activated.";
+        return RedirectToAction(nameof(Index));
     }
 
     private async Task PopulateClientsAsync(CancellationToken cancellationToken, int? selectedId = null)
