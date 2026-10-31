@@ -12,4 +12,10 @@ public sealed class AppUser : IdentityUser
     public DateTime RegisteredAtUtc { get; set; }
     public DateTime? ApprovedAtUtc { get; set; }
     public string? ApprovedById { get; set; }
+
+    [MaxLength(1048576)]
+    public byte[]? ProfilePicture { get; set; }
+
+    [StringLength(50)]
+    public string? ProfilePictureContentType { get; set; }
 }

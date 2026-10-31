@@ -9,6 +9,7 @@ using TechMove.Contracts;
 namespace TechMove.Services;
 
 public sealed record AgreementDownload(byte[] Content, string FileName, string ContentType);
+public sealed record ProfilePictureDownload(byte[] Content, string ContentType);
 
 public sealed class TechMoveApiClient(
     HttpClient httpClient,
@@ -45,14 +46,78 @@ public sealed class TechMoveApiClient(
         response.EnsureSuccessStatusCode();
     }
 
+    public async Task ForgotPasswordAsync(
+        ForgotPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.PostAsJsonAsync(
+            "api/auth/forgot-password",
+            request,
+            JsonOptions,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task ResetPasswordAsync(
+        ResetPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.PostAsJsonAsync(
+            "api/auth/reset-password",
+            request,
+            JsonOptions,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
     public Task<DashboardDto> GetDashboardAsync(CancellationToken cancellationToken) =>
         GetAsync<DashboardDto>("api/dashboard", cancellationToken);
+
+    public Task<UserProfileDto> GetProfileAsync(CancellationToken cancellationToken) =>
+        GetAsync<UserProfileDto>("api/profile", cancellationToken);
+
+    public Task<ProfilePictureDownload?> GetProfilePictureAsync(CancellationToken cancellationToken) =>
+        DownloadProfilePictureAsync("api/profile/picture", cancellationToken);
+
+    public Task<ProfilePictureDownload?> GetManagedProfilePictureAsync(
+        string id,
+        CancellationToken cancellationToken) =>
+        DownloadProfilePictureAsync(
+            $"api/users/{Uri.EscapeDataString(id)}/profile-picture",
+            cancellationToken);
+
+    public async Task UpdateProfilePictureAsync(
+        IFormFile profilePicture,
+        CancellationToken cancellationToken)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Put, "api/profile/picture", cancellationToken);
+        using var content = new MultipartFormDataContent();
+        var fileContent = new StreamContent(profilePicture.OpenReadStream());
+        fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(
+            profilePicture.ContentType ?? "application/octet-stream");
+        content.Add(fileContent, "profilePicture", Path.GetFileName(profilePicture.FileName));
+        request.Content = content;
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task DeleteProfilePictureAsync(CancellationToken cancellationToken) =>
+        await SendJsonAsync(HttpMethod.Delete, "api/profile/picture", new { }, cancellationToken);
 
     public async Task ApproveUserAsync(string id, CancellationToken cancellationToken) =>
         await SendJsonAsync(HttpMethod.Post, $"api/users/{Uri.EscapeDataString(id)}/approve", new { }, cancellationToken);
 
     public async Task PromoteUserAsync(string id, CancellationToken cancellationToken) =>
         await SendJsonAsync(HttpMethod.Post, $"api/users/{Uri.EscapeDataString(id)}/promote", new { }, cancellationToken);
+
+    public async Task UpdateUserAsync(
+        string id,
+        UpdateManagedUserRequest request,
+        CancellationToken cancellationToken) =>
+        await SendJsonAsync(HttpMethod.Put, $"api/users/{Uri.EscapeDataString(id)}", request, cancellationToken);
+
+    public async Task DeleteUserAsync(string id, CancellationToken cancellationToken) =>
+        await SendJsonAsync(HttpMethod.Delete, $"api/users/{Uri.EscapeDataString(id)}", new { }, cancellationToken);
 
     public Task<IReadOnlyList<ClientDto>> GetClientsAsync(CancellationToken cancellationToken) =>
         GetAsync<IReadOnlyList<ClientDto>>("api/clients", cancellationToken);
@@ -165,6 +230,22 @@ public sealed class TechMoveApiClient(
         }
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
+    }
+
+    private async Task<ProfilePictureDownload?> DownloadProfilePictureAsync(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Get, path, cancellationToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        response.EnsureSuccessStatusCode();
+        return new ProfilePictureDownload(
+            await response.Content.ReadAsByteArrayAsync(cancellationToken),
+            response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream");
     }
 
     private async Task SendJsonAsync<T>(

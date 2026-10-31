@@ -120,6 +120,28 @@ public sealed record LoginResponse(
     IReadOnlyCollection<string> Roles);
 public sealed record RegistrationResponse(string UserId, string Email, string Message);
 public sealed record ConfirmEmailRequest(string UserId, string Token);
+public sealed record UserProfileDto(string DisplayName, string Email, bool HasProfilePicture);
+
+public sealed class ForgotPasswordRequest
+{
+    [Required, EmailAddress, StringLength(256)]
+    public string Email { get; set; } = string.Empty;
+}
+
+public sealed class ResetPasswordRequest
+{
+    [Required, EmailAddress, StringLength(256)]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    [Required, StringLength(100, MinimumLength = 8), DataType(DataType.Password), Display(Name = "New password")]
+    public string Password { get; set; } = string.Empty;
+
+    [Required, Compare(nameof(Password)), DataType(DataType.Password), Display(Name = "Confirm new password")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
 
 public sealed class PendingUserDto
 {
@@ -136,6 +158,15 @@ public sealed class ManagedUserDto
     public string Email { get; set; } = string.Empty;
     public bool IsAdmin { get; set; }
     public DateTime RegisteredAtUtc { get; set; }
+}
+
+public sealed class UpdateManagedUserRequest
+{
+    [Required, StringLength(100), Display(Name = "Display name")]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [Required, EmailAddress, StringLength(256)]
+    public string Email { get; set; } = string.Empty;
 }
 
 public sealed class RegisterRequest

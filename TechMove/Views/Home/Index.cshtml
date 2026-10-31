@@ -40,14 +40,39 @@
             @foreach (var pendingUser in Model.PendingUsers)
             {
                 <div class="tm-queue-item">
-                    <div>
-                        <strong>@pendingUser.DisplayName</strong>
-                        <small>@pendingUser.Email · Registered @pendingUser.RegisteredAtUtc.ToLocalTime().ToString("g")</small>
+                    <div class="tm-account-identity">
+                        <span class="tm-avatar" aria-hidden="true"><span>@pendingUser.DisplayName[..1].ToUpperInvariant()</span><img src="@Url.Action("ManagedProfilePicture", "Account", new { id = pendingUser.Id })" alt="" onerror="this.remove()" /></span>
+                        <div><strong>@pendingUser.DisplayName</strong><small>@pendingUser.Email · Registered @pendingUser.RegisteredAtUtc.ToLocalTime().ToString("g")</small></div>
                     </div>
-                    <form asp-action="ApproveUser" method="post">
-                        <input type="hidden" name="id" value="@pendingUser.Id" />
-                        <button class="btn btn-sm btn-success">Approve account</button>
-                    </form>
+                    <div class="d-flex gap-2">
+                        <form asp-action="ApproveUser" method="post">
+                            <input type="hidden" name="id" value="@pendingUser.Id" />
+                            <button class="btn btn-sm btn-success">Approve account</button>
+                        </form>
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editPending-@pendingUser.Id">Edit</button>
+                        <form asp-action="DeleteUser" method="post" onsubmit="return confirm('Delete this employee account? This cannot be undone.');">
+                            <input type="hidden" name="id" value="@pendingUser.Id" />
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="modal fade" id="editPending-@pendingUser.Id" tabindex="-1" aria-labelledby="editPendingLabel-@pendingUser.Id" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form asp-action="UpdateUser" method="post">
+                                <div class="modal-header">
+                                    <h2 class="modal-title fs-5" id="editPendingLabel-@pendingUser.Id">Edit employee</h2>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" name="id" value="@pendingUser.Id" />
+                                    <div class="mb-3"><label class="form-label" for="pendingName-@pendingUser.Id">Display name</label><input class="form-control" id="pendingName-@pendingUser.Id" name="DisplayName" value="@pendingUser.DisplayName" required maxlength="100" /></div>
+                                    <div><label class="form-label" for="pendingEmail-@pendingUser.Id">Email</label><input class="form-control" id="pendingEmail-@pendingUser.Id" name="Email" value="@pendingUser.Email" type="email" required maxlength="256" /></div>
+                                </div>
+                                <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save changes</button></div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             }
         </div>
@@ -62,21 +87,46 @@
             @foreach (var managedUser in Model.Users)
             {
                 <div class="tm-queue-item">
-                    <div>
-                        <strong>@managedUser.DisplayName</strong>
-                        <small>@managedUser.Email · @(managedUser.IsAdmin ? "Manager" : "Employee")</small>
+                    <div class="tm-account-identity">
+                        <span class="tm-avatar" aria-hidden="true"><span>@managedUser.DisplayName[..1].ToUpperInvariant()</span><img src="@Url.Action("ManagedProfilePicture", "Account", new { id = managedUser.Id })" alt="" onerror="this.remove()" /></span>
+                        <div><strong>@managedUser.DisplayName</strong><small>@managedUser.Email · @(managedUser.IsAdmin ? "Manager" : "Employee")</small></div>
                     </div>
-                    @if (managedUser.IsAdmin)
-                    {
-                        <span class="badge text-bg-success">Manager</span>
-                    }
-                    else
-                    {
-                        <form asp-action="PromoteUser" method="post">
+                    <div class="d-flex gap-2 align-items-center">
+                        @if (managedUser.IsAdmin)
+                        {
+                            <span class="badge text-bg-success">Manager</span>
+                        }
+                        else
+                        {
+                            <form asp-action="PromoteUser" method="post">
+                                <input type="hidden" name="id" value="@managedUser.Id" />
+                                <button class="btn btn-sm btn-outline-primary">Make manager</button>
+                            </form>
+                        }
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editManaged-@managedUser.Id">Edit</button>
+                        <form asp-action="DeleteUser" method="post" onsubmit="return confirm('Delete this @(managedUser.IsAdmin ? "manager" : "employee") account? This cannot be undone.');">
                             <input type="hidden" name="id" value="@managedUser.Id" />
-                            <button class="btn btn-sm btn-outline-primary">Make manager</button>
+                            <button class="btn btn-sm btn-outline-danger">Delete</button>
                         </form>
-                    }
+                    </div>
+                </div>
+                <div class="modal fade" id="editManaged-@managedUser.Id" tabindex="-1" aria-labelledby="editManagedLabel-@managedUser.Id" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form asp-action="UpdateUser" method="post">
+                                <div class="modal-header">
+                                    <h2 class="modal-title fs-5" id="editManagedLabel-@managedUser.Id">Edit @(managedUser.IsAdmin ? "manager" : "employee")</h2>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" name="id" value="@managedUser.Id" />
+                                    <div class="mb-3"><label class="form-label" for="managedName-@managedUser.Id">Display name</label><input class="form-control" id="managedName-@managedUser.Id" name="DisplayName" value="@managedUser.DisplayName" required maxlength="100" /></div>
+                                    <div><label class="form-label" for="managedEmail-@managedUser.Id">Email</label><input class="form-control" id="managedEmail-@managedUser.Id" name="Email" value="@managedUser.Email" type="email" required maxlength="256" /></div>
+                                </div>
+                                <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save changes</button></div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             }
         </div>

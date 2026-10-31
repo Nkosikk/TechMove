@@ -18,6 +18,7 @@ public sealed class AuthController(
     IOptions<EmailDeliveryOptions> emailOptions,
     JwtTokenService tokenService,
     IAccountEmailSender emailSender,
+    ILogger<AuthController> logger,
     UserManager<AppUser> userManager) : ControllerBase
 {
     [AllowAnonymous]
@@ -107,6 +108,68 @@ public sealed class AuthController(
     }
 
     [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    public async Task<IActionResult> ForgotPassword(
+        ForgotPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        if (user is null || !user.EmailConfirmed)
+        {
+            return Accepted();
+        }
+
+        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+        var resetUrl = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            $"{emailOptions.Value.PublicAppBaseUrl.TrimEnd('/')}/Account/ResetPassword",
+            new Dictionary<string, string?>
+            {
+                ["email"] = user.Email,
+                ["token"] = token
+            });
+        try
+        {
+            await emailSender.SendPasswordResetAsync(
+                user.Email!,
+                user.DisplayName,
+                resetUrl,
+                cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Password reset email delivery failed for user {UserId}.", user.Id);
+        }
+
+        return Accepted();
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        if (user is null || !user.EmailConfirmed)
+        {
+            return InvalidPasswordReset();
+        }
+
+        var result = await userManager.ResetPasswordAsync(user, request.Token, request.Password);
+        if (result.Succeeded)
+        {
+            return NoContent();
+        }
+
+        foreach (var error in result.Errors)
+        {
+            ModelState.AddModelError(string.Empty, error.Description);
+        }
+        return ValidationProblem(ModelState);
+    }
+
+    [AllowAnonymous]
     [HttpPost("login")]
     [ProducesResponseType<LoginResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -171,6 +234,12 @@ public sealed class AuthController(
     private ActionResult InvalidConfirmation()
     {
         ModelState.AddModelError(string.Empty, "The email confirmation link is invalid or has expired.");
+        return ValidationProblem(ModelState);
+    }
+
+    private ActionResult InvalidPasswordReset()
+    {
+        ModelState.AddModelError(string.Empty, "The password reset link is invalid or has expired.");
         return ValidationProblem(ModelState);
     }
 }

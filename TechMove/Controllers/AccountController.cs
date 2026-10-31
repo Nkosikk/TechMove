@@ -51,6 +51,70 @@ public sealed class AccountController(TechMoveApiClient apiClient) : Controller
     public IActionResult Register() => View(new RegisterRequest());
 
     [AllowAnonymous]
+    public IActionResult ForgotPassword() => View(new ForgotPasswordRequest());
+
+    [AllowAnonymous]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(
+        ForgotPasswordRequest model,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        try
+        {
+            await apiClient.ForgotPasswordAsync(model, cancellationToken);
+            TempData["Success"] = "If that email belongs to a confirmed TechMove account, a password reset link has been sent.";
+            return RedirectToAction(nameof(Login));
+        }
+        catch (HttpRequestException)
+        {
+            ModelState.AddModelError(string.Empty, "The password reset request could not be submitted. Please try again.");
+            return View(model);
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpGet]
+    public IActionResult ResetPassword(string email, string token)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token))
+        {
+            TempData["Error"] = "This password reset link is invalid or has expired.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        return View(new ResetPasswordRequest { Email = email, Token = token });
+    }
+
+    [AllowAnonymous]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(
+        ResetPasswordRequest model,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        try
+        {
+            await apiClient.ResetPasswordAsync(model, cancellationToken);
+            TempData["Success"] = "Your password has been reset. You can now sign in with the new password.";
+            return RedirectToAction(nameof(Login));
+        }
+        catch (HttpRequestException)
+        {
+            ModelState.AddModelError(string.Empty, "The reset link is invalid or expired, or the new password does not meet the requirements.");
+            return View(model);
+        }
+    }
+
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> ConfirmEmail(
         string userId,
@@ -100,6 +164,65 @@ public sealed class AccountController(TechMoveApiClient apiClient) : Controller
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Login));
+    }
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> Profile(CancellationToken cancellationToken) =>
+        View(new ProfileViewModel
+        {
+            Profile = await apiClient.GetProfileAsync(cancellationToken)
+        });
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadProfilePicture(
+        IFormFile? profilePicture,
+        CancellationToken cancellationToken)
+    {
+        if (profilePicture is null || profilePicture.Length == 0)
+        {
+            TempData["Error"] = "Select a JPEG, PNG, or WebP picture to upload.";
+            return RedirectToAction(nameof(Profile));
+        }
+
+        try
+        {
+            await apiClient.UpdateProfilePictureAsync(profilePicture, cancellationToken);
+            TempData["Success"] = "Profile picture updated.";
+        }
+        catch (HttpRequestException)
+        {
+            TempData["Error"] = "The picture could not be uploaded. Use a valid JPEG, PNG, or WebP image no larger than 1 MB.";
+        }
+        return RedirectToAction(nameof(Profile));
+    }
+
+    [Authorize]
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteProfilePicture(CancellationToken cancellationToken)
+    {
+        await apiClient.DeleteProfilePictureAsync(cancellationToken);
+        TempData["Success"] = "Profile picture removed.";
+        return RedirectToAction(nameof(Profile));
+    }
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> ProfilePicture(CancellationToken cancellationToken)
+    {
+        var picture = await apiClient.GetProfilePictureAsync(cancellationToken);
+        return picture is null ? NotFound() : File(picture.Content, picture.ContentType);
+    }
+
+    [Authorize(Roles = AppRoles.Admin)]
+    [HttpGet]
+    public async Task<IActionResult> ManagedProfilePicture(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        var picture = await apiClient.GetManagedProfilePictureAsync(id, cancellationToken);
+        return picture is null ? NotFound() : File(picture.Content, picture.ContentType);
     }
 
     public IActionResult AccessDenied() => View();

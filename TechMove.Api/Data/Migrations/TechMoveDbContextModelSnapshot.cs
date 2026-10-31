@@ -211,6 +211,14 @@ namespace TechMove.Api.Data.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<byte[]>("ProfilePicture")
+                        .HasMaxLength(1048576)
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("ProfilePictureContentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<DateTime>("RegisteredAtUtc")
                         .HasColumnType("datetime2");
 

@@ -1,0 +1,52 @@
+@model ProfileViewModel
+@{
+    ViewData["Title"] = "My profile";
+    var initial = string.IsNullOrWhiteSpace(Model.Profile.DisplayName)
+        ? "?"
+        : Model.Profile.DisplayName[..1].ToUpperInvariant();
+}
+
+<div class="tm-hero mb-4">
+    <div>
+        <span class="tm-eyebrow">Personal account</span>
+        <h1 class="display-5">My Profile</h1>
+        <p class="col-lg-8 fs-5">Add a profile picture so your team can recognize you across TechMove.</p>
+    </div>
+</div>
+
+<div class="row g-4 justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body p-4 p-lg-5 tm-profile-grid">
+                <div class="tm-profile-preview">
+                    <span class="tm-avatar tm-avatar-xl" aria-hidden="true">
+                        <span>@initial</span>
+                        @if (Model.Profile.HasProfilePicture)
+                        {
+                            <img src="@Url.Action("ProfilePicture", "Account", new { v = DateTime.UtcNow.Ticks })" alt="" />
+                        }
+                    </span>
+                </div>
+                <div>
+                    <span class="tm-eyebrow">@(User.IsInRole(AppRoles.Admin) ? "Manager" : "Employee")</span>
+                    <h2 class="h3 mt-2 mb-1">@Model.Profile.DisplayName</h2>
+                    <p class="text-muted mb-4">@Model.Profile.Email</p>
+
+                    <form asp-action="UploadProfilePicture" method="post" enctype="multipart/form-data" class="mb-3">
+                        <label class="form-label" for="profilePicture">Choose a profile picture</label>
+                        <input class="form-control" id="profilePicture" name="profilePicture" type="file" accept="image/jpeg,image/png,image/webp" required />
+                        <div class="form-text mb-3">JPEG, PNG, or WebP. Maximum size: 1 MB.</div>
+                        <button class="btn btn-primary">@(Model.Profile.HasProfilePicture ? "Replace picture" : "Upload picture")</button>
+                    </form>
+
+                    @if (Model.Profile.HasProfilePicture)
+                    {
+                        <form asp-action="DeleteProfilePicture" method="post" onsubmit="return confirm('Remove your profile picture?');">
+                            <button class="btn btn-outline-danger">Remove picture</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

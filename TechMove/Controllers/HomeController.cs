@@ -25,6 +25,49 @@ namespace TechMove.Controllers
 
         [HttpPost, ValidateAntiForgeryToken]
         [Authorize(Roles = AppRoles.Admin)]
+        public async Task<IActionResult> UpdateUser(
+            string id,
+            UpdateManagedUserRequest model,
+            CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Enter a valid employee or manager name and email address.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            try
+            {
+                await apiClient.UpdateUserAsync(id, model, cancellationToken);
+                TempData["Success"] = "Account details updated.";
+            }
+            catch (HttpRequestException)
+            {
+                TempData["Error"] = "The account could not be updated. The email address may already be in use.";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        [Authorize(Roles = AppRoles.Admin)]
+        public async Task<IActionResult> DeleteUser(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await apiClient.DeleteUserAsync(id, cancellationToken);
+                TempData["Success"] = "Employee account deleted.";
+            }
+            catch (HttpRequestException)
+            {
+                TempData["Error"] = "The account could not be deleted. Managers cannot delete themselves or the last manager, and owned logistics records must be reassigned first.";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        [Authorize(Roles = AppRoles.Admin)]
         public async Task<IActionResult> PromoteUser(string id, CancellationToken cancellationToken)
         {
             await apiClient.PromoteUserAsync(id, cancellationToken);

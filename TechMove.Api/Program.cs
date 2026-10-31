@@ -45,6 +45,7 @@ var agreementStorageOptions = builder.Configuration
 builder.Services.AddSingleton(agreementStorageOptions);
 builder.Services.AddSingleton<AgreementFileValidator>();
 builder.Services.AddSingleton<AgreementFileService>();
+builder.Services.AddSingleton<ProfilePictureValidator>();
 builder.Services.AddSingleton<ContractWorkflowService>();
 builder.Services.AddHttpClient<ICurrencyService, CurrencyService>(client =>
     client.BaseAddress = new Uri(builder.Configuration["CurrencyApi:BaseUrl"]

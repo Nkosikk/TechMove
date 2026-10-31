@@ -39,6 +39,22 @@ public sealed class SmtpAccountEmailSender(IOptions<EmailDeliveryOptions> option
             cancellationToken);
     }
 
+    public Task SendPasswordResetAsync(
+        string email,
+        string displayName,
+        string resetUrl,
+        CancellationToken cancellationToken = default)
+    {
+        var encodedName = HtmlEncoder.Default.Encode(displayName);
+        var encodedUrl = HtmlEncoder.Default.Encode(resetUrl);
+        return SendAsync(
+            email,
+            "Reset your TechMove password",
+            $"Hello {displayName},\n\nReset your TechMove password: {resetUrl}\n\nIf you did not request this, you can ignore this email.",
+            $"<p>Hello {encodedName},</p><p>A password reset was requested for your TechMove account.</p><p><a href=\"{encodedUrl}\">Reset password</a></p><p>If you did not request this, you can ignore this email.</p>",
+            cancellationToken);
+    }
+
     private async Task SendAsync(
         string recipient,
         string subject,
