@@ -1,15 +1,19 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Mvc;
 using TechMove.Contracts;
 
 namespace TechMove.Services;
 
 public sealed record AgreementDownload(byte[] Content, string FileName, string ContentType);
 public sealed record ProfilePictureDownload(byte[] Content, string ContentType);
+public sealed class TechMoveApiException(HttpStatusCode statusCode, string message)
+    : HttpRequestException(message, null, statusCode);
 
 public sealed class TechMoveApiClient(
     HttpClient httpClient,
@@ -104,8 +108,34 @@ public sealed class TechMoveApiClient(
     public async Task DeleteProfilePictureAsync(CancellationToken cancellationToken) =>
         await SendJsonAsync(HttpMethod.Delete, "api/profile/picture", new { }, cancellationToken);
 
-    public async Task ApproveUserAsync(string id, CancellationToken cancellationToken) =>
-        await SendJsonAsync(HttpMethod.Post, $"api/users/{Uri.EscapeDataString(id)}/approve", new { }, cancellationToken);
+    public async Task ApproveUserAsync(string id, CancellationToken cancellationToken)
+    {
+        using var request = await CreateRequestAsync(
+            HttpMethod.Post,
+            $"api/users/{Uri.EscapeDataString(id)}/approve",
+            cancellationToken);
+        request.Content = JsonContent.Create(new { }, options: JsonOptions);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        string? message = null;
+        try
+        {
+            var problem = JsonSerializer.Deserialize<ProblemDetails>(responseBody, JsonOptions);
+            message = problem?.Detail ?? problem?.Title;
+        }
+        catch (JsonException)
+        {
+        }
+
+        throw new TechMoveApiException(
+            response.StatusCode,
+            message ?? $"The TechMove API returned {(int)response.StatusCode} ({response.ReasonPhrase}).");
+    }
 
     public async Task PromoteUserAsync(string id, CancellationToken cancellationToken) =>
         await SendJsonAsync(HttpMethod.Post, $"api/users/{Uri.EscapeDataString(id)}/promote", new { }, cancellationToken);

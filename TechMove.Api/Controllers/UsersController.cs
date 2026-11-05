@@ -14,6 +14,7 @@ namespace TechMove.Api.Controllers;
 [Route("api/users")]
 public sealed class UsersController(
     IAccountEmailSender emailSender,
+    ILogger<UsersController> logger,
     UserManager<AppUser> userManager) : ControllerBase
 {
     [HttpGet("{id}/profile-picture")]
@@ -64,13 +65,12 @@ public sealed class UsersController(
                     user.DisplayName,
                     cancellationToken);
             }
-            catch
+            catch (Exception exception)
             {
-                user.IsApproved = false;
-                user.ApprovedAtUtc = null;
-                user.ApprovedById = null;
-                await userManager.UpdateAsync(user);
-                throw;
+                logger.LogWarning(
+                    exception,
+                    "Account {UserId} was approved, but the approval email could not be sent.",
+                    user.Id);
             }
         }
 

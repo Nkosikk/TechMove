@@ -5,3 +5,6 @@
 - TechMove managers should be able to manage employee accounts and other manager accounts, including amending account details; manager-to-manager administration is required.
 - For TechMove profile pictures, employees and managers may upload, change, or remove only their own picture; managers may view everyone’s picture but must not alter another account’s picture.
 - Proceed with implementation using minimal clarifying questions when requirements are sufficiently clear.
+
+## Documentation Guidelines
+- When checking whether project documentation exists, verify tracked files and case/path variants before concluding that no README is present.

@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Net;
 using System.Diagnostics;
 using TechMove.Contracts;
 using TechMove.Models;
@@ -18,8 +21,32 @@ namespace TechMove.Controllers
         [Authorize(Roles = AppRoles.Admin)]
         public async Task<IActionResult> ApproveUser(string id, CancellationToken cancellationToken)
         {
-            await apiClient.ApproveUserAsync(id, cancellationToken);
-            TempData["Success"] = "Employee account approved. An email notification was sent and the employee can now sign in.";
+            try
+            {
+                await apiClient.ApproveUserAsync(id, cancellationToken);
+                TempData["Success"] = "Employee account approved. The employee can now sign in.";
+            }
+            catch (TechMoveApiException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                TempData["Error"] = "Your session expired. Sign in again before approving the account.";
+                return RedirectToAction("Login", "Account");
+            }
+            catch (TechMoveApiException exception)
+            {
+                TempData["Error"] = exception.StatusCode switch
+                {
+                    HttpStatusCode.BadRequest => exception.Message,
+                    HttpStatusCode.NotFound => "The employee account no longer exists or is no longer awaiting approval.",
+                    HttpStatusCode.Forbidden => "You no longer have permission to approve employee accounts.",
+                    _ => "The employee account could not be approved. Check the API logs and try again."
+                };
+            }
+            catch (HttpRequestException)
+            {
+                TempData["Error"] = "The TechMove API could not be reached. Confirm that the API is running, then try again.";
+            }
+
             return RedirectToAction(nameof(Index));
         }
 

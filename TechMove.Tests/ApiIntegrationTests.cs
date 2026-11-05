@@ -55,6 +55,7 @@ public sealed record TestAccountEmail(string Type, string Recipient, string? Con
 public sealed class TestAccountEmailSender : IAccountEmailSender
 {
     public List<TestAccountEmail> Sent { get; } = [];
+    public bool FailApprovalDelivery { get; set; }
 
     public Task SendRegistrationConfirmationAsync(
         string email,
@@ -71,6 +72,11 @@ public sealed class TestAccountEmailSender : IAccountEmailSender
         string displayName,
         CancellationToken cancellationToken = default)
     {
+        if (FailApprovalDelivery)
+        {
+            throw new InvalidOperationException("Simulated approval email delivery failure.");
+        }
+
         Sent.Add(new TestAccountEmail("Approval", email));
         return Task.CompletedTask;
     }
@@ -294,6 +300,35 @@ public sealed class ApiIntegrationTests(TechMoveApiFactory factory) : IClassFixt
         Assert.Contains(AppRoles.User, login!.Roles);
         Assert.Contains(factory.EmailSender.Sent,
             message => message.Type == "Approval" && message.Recipient == email);
+    }
+
+    [Fact]
+    public async Task ApproveUser_WhenEmailDeliveryFails_StillAllowsLogin()
+    {
+        using var userClient = CreateClient();
+        using var adminClient = CreateClient();
+        var email = $"approval-email-failure-{Guid.NewGuid():N}@integration.test";
+        var registration = await RegisterAsync(userClient, email);
+        await ConfirmEmailAsync(userClient, email);
+        await AuthenticateAdminAsync(adminClient);
+        factory.EmailSender.FailApprovalDelivery = true;
+
+        try
+        {
+            var approvalResponse = await adminClient.PostAsJsonAsync(
+                $"/api/users/{registration.UserId}/approve",
+                new { });
+            var loginResponse = await userClient.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest(email, "User123!"));
+
+            Assert.Equal(HttpStatusCode.NoContent, approvalResponse.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
+        }
+        finally
+        {
+            factory.EmailSender.FailApprovalDelivery = false;
+        }
     }
 
     [Fact]
