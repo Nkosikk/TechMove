@@ -1,13 +1,16 @@
+extern alias TechMoveWeb;
+
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.DependencyInjection;
-using TechMove.Controllers;
-using TechMove.Services;
+using HomeController = TechMoveWeb::TechMove.Controllers.HomeController;
+using TechMoveApiClient = TechMoveWeb::TechMove.Services.TechMoveApiClient;
 
 namespace TechMove.Tests;
 
@@ -35,7 +38,8 @@ public sealed class ApprovalWebTests
         var controller = new HomeController(apiClient)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
-            TempData = new TempDataDictionary(httpContext, new TestTempDataProvider())
+            TempData = new TempDataDictionary(httpContext, new TestTempDataProvider()),
+            Url = new TestUrlHelper()
         };
 
         var result = await controller.ApproveUser("employee-id", CancellationToken.None);
@@ -59,6 +63,7 @@ public sealed class ApprovalWebTests
                 "Test")));
         var services = new ServiceCollection()
             .AddSingleton<IAuthenticationService>(authenticationService)
+            .AddSingleton<IUrlHelperFactory, UrlHelperFactory>()
             .BuildServiceProvider();
 
         return new DefaultHttpContext { RequestServices = services };
@@ -108,5 +113,20 @@ public sealed class ApprovalWebTests
         public void SaveTempData(HttpContext context, IDictionary<string, object> values)
         {
         }
+    }
+
+    private sealed class TestUrlHelper : IUrlHelper
+    {
+        public ActionContext ActionContext { get; } = new();
+
+        public string? Action(UrlActionContext actionContext) => "/";
+
+        public string? Content(string? contentPath) => contentPath;
+
+        public bool IsLocalUrl(string? url) => true;
+
+        public string? Link(string? routeName, object? values) => "/";
+
+        public string? RouteUrl(UrlRouteContext routeContext) => "/";
     }
 }

@@ -23,7 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\TechMove.Api\TechMove.Api.csproj" />
     <ProjectReference Include="..\TechMove.Contracts\TechMove.Contracts.csproj" />
-    <ProjectReference Include="..\TechMove\TechMove.csproj" />
+    <ProjectReference Include="..\TechMove\TechMove.csproj" Aliases="TechMoveWeb" />
   </ItemGroup>
 
 </Project>
