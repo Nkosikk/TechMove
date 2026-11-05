@@ -111,7 +111,7 @@ public sealed class CreateServiceRequestRequest
 
 public sealed record UpdateContractStatusRequest(ContractStatus Status);
 public sealed record UpdateServiceRequestStatusRequest(ServiceRequestStatus Status);
-public sealed record ApprovalRequest([property: StringLength(500)] string? Note);
+public sealed record ApprovalRequest([StringLength(500)] string? Note);
 public sealed record LoginRequest(string Username, string Password);
 public sealed record LoginResponse(
     string AccessToken,

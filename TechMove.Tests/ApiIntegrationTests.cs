@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TechMove.Api.Data;
+using TechMove.Api.Models;
 using TechMove.Api.Services;
 using TechMove.Contracts;
 
@@ -505,6 +506,56 @@ public sealed class ApiIntegrationTests(TechMoveApiFactory factory) : IClassFixt
         var response = await client.PostAsJsonAsync("/api/contracts/999/approve", new ApprovalRequest(null));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ApproveContract_AsAdmin_ActivatesContract()
+    {
+        int contractId;
+        string adminId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<TechMoveDbContext>();
+            var admin = await dbContext.Users.SingleAsync(user => user.Email == "admin@integration.test");
+            adminId = admin.Id;
+            var clientRecord = new Client
+            {
+                Name = $"Approval Client {Guid.NewGuid():N}",
+                ContactDetails = "approval@example.test",
+                Region = "Africa",
+                OwnerId = admin.Id
+            };
+            var contract = new Contract
+            {
+                Client = clientRecord,
+                Title = $"Approval Contract {Guid.NewGuid():N}",
+                StartDate = DateTime.UtcNow.Date,
+                EndDate = DateTime.UtcNow.Date.AddYears(1),
+                Status = ContractStatus.Draft,
+                ServiceLevel = "Standard",
+                OwnerId = admin.Id
+            };
+            dbContext.Contracts.Add(contract);
+            await dbContext.SaveChangesAsync();
+            contractId = contract.Id;
+        }
+
+        using var client = CreateClient();
+        await AuthenticateAdminAsync(client);
+        var response = await client.PostAsJsonAsync(
+            $"/api/contracts/{contractId}/approve",
+            new ApprovalRequest("Approved for activation"));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationContext = verificationScope.ServiceProvider.GetRequiredService<TechMoveDbContext>();
+        var approvedContract = await verificationContext.Contracts
+            .AsNoTracking()
+            .SingleAsync(contract => contract.Id == contractId);
+        Assert.Equal(ContractStatus.Active, approvedContract.Status);
+        Assert.Equal(adminId, approvedContract.ApprovedById);
+        Assert.Equal("Approved for activation", approvedContract.ApprovalNote);
+        Assert.NotNull(approvedContract.ApprovedAtUtc);
     }
 
     private static async Task AuthenticateAsync(HttpClient client)
